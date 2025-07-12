@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Forty Thieves Solitaire</title>
+
+    <!-- Normalize CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/normalize/8.0.1/normalize.min.css" integrity="sha512-NhSC1YmyruXifcj/KFRWoC561YpHpc5Jtzgvbuzx5VozKpWvQ+4nXhPdFgmx8xqexRcpAglTj9sIBWINXa8x5w==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Jomhuria&family=PT+Sans+Narrow:wght@400;700&display=swap" rel="stylesheet">
+    
+    <!-- My Styles -->
+    <link rel="stylesheet" href="styles.css">
+
+    <script src="gsap/gsap.min.js" defer></script>
+    <script type="module" src="js/main.js"></script>
+
+</head>
+<body>
+    <div id="container">
+        
+        <header>
+            <div id="deck-container">
+                <h1><span>forty</span><span>thieves</span></h1>
+                <div id="deck"></div>
+                <div id="discard"></div>
+                <div id="top">
+                    <div id="error-container">
+                        <p id="error-message" class="hide"></p>
+                    </div>
+                </div>
+                
+                <div id="button-container">
+                    <button class="newgame action-bttn">new game</button>
+                    <button id="undo" class="action-bttn">undo (-1 point)</button>
+                </div>
+                <div id="score-container">
+                    <h2>score</h2>
+                    <p id="score">0</p>
+                    <p>points</p>
+                </div>
+            </div>
+            <div id="foundation-container">
+                <div id="f1" class="foundation"></div>
+                <div id="f2" class="foundation"></div>
+                <div id="f3" class="foundation"></div>
+                <div id="f4" class="foundation"></div>
+                <div id="f5" class="foundation"></div>
+                <div id="f6" class="foundation"></div>
+                <div id="f7" class="foundation"></div>
+                <div id="f8" class="foundation"></div>
+                
+            </div>
+        </header>
+        <main>
+            <section id="s1"></section>
+            <section id="s2"></section>
+            <section id="s3"></section>
+            <section id="s4"></section>
+            <section id="s5"></section>
+            <section id="s6"></section>
+            <section id="s7"></section>
+            <section id="s8"></section>
+            <section id="s9"></section>
+            <section id="s10"></section>
+        </main>
+        <img src="images/ali-baba.png" alt="ali-baba" id="ali-baba">
+    </div>
+</body>
+</html>
