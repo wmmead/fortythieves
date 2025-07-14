@@ -1,5 +1,6 @@
 import { shuffledDeck, setSelectedCard, undoCount, isValidTableauMove, isValidFoundationMove, refreshCount, getRefreshCost } from './game.js';
 import { shakeElement } from './animation.js';
+import { getGameStatistics } from './stats.js';
 
 /*
 ================================================================================
@@ -50,6 +51,8 @@ SECTION: GAME DISPLAY
 - updateUndoButtonText(): Update the undo button text to reflect the next cost.
 - updateScoreDisplay(score): Update the displayed score.
 - setCardBackgrounds(): Set background images for all cards based on their suit and value.
+- updateGameStatsInfo(): Sets the DOM so show the current stats
+- resetGameStatsInfo(): resets the stats in the DOM screen
 
 SECTION: SCREEN MANAGER
 -----------------------
@@ -368,6 +371,22 @@ export function setCardBackgrounds() {
         const imgPath = `cards/${suit}${value}.png`;
         card.style.backgroundImage = `url('${imgPath}')`;
     });
+}
+
+export function updateGameStatsInfo(){
+    const currentGameStats = getGameStatistics();
+    console.log('current games played: ' + currentGameStats.gamesPlayed);
+    if( currentGameStats.gamesPlayed ){
+        document.querySelector('#played').textContent = currentGameStats.gamesPlayed;
+        document.querySelector('#average').textContent = currentGameStats.averageScore;
+        document.querySelector('#wins').textContent = currentGameStats.gamesWon;
+    }
+}
+
+export function resetGameStatsInfo(){
+    document.querySelector('#played').textContent = '0';
+    document.querySelector('#average').textContent = '0';
+    document.querySelector('#wins').textContent = '0';
 }
 
 /* --------- SCREEN MANAGER ----------- */

@@ -1,7 +1,8 @@
 // Import UI update functions for card stacking, layout, and deck counter
-import { stackCards, setSectionHeights, createCardElement, blockUserInteraction, unblockUserInteraction, setDeckRefresh, setRefreshToEmpty, restoreDeck, clearBoard, updateUndoButtonText, updateDeckCounter, getContainerById, getClassElements, getLastDiscard, findCardInContainer, moveCardElement, updateCardStyle, restackCards, updateSectionHeights, showError, updateScoreDisplay, showWinScreen, resetMain } from './ui.js';
+import { stackCards, setSectionHeights, createCardElement, blockUserInteraction, unblockUserInteraction, setDeckRefresh, setRefreshToEmpty, restoreDeck, clearBoard, updateUndoButtonText, updateDeckCounter, getContainerById, getClassElements, getLastDiscard, findCardInContainer, moveCardElement, updateCardStyle, restackCards, updateSectionHeights, showError, updateScoreDisplay, showWinScreen, resetMain, updateGameStatsInfo } from './ui.js';
 import { getCardMoveDelta, animateMove } from './animation.js';
 import { setupEventListeners } from './events.js';
+import { createNewGameRecord, updateCurrentGameStats, deleteZeroMoveRecords, moveCurrentGameToStats } from './stats.js';
 
 /*
 ================================================================================
@@ -118,6 +119,9 @@ const cardValues = [
 ============================================================================ */
 export async function initGame() {
     await distributeCards(shuffledDeck);
+    deleteZeroMoveRecords();
+    updateGameStatsInfo();
+    createNewGameRecord();
     setupEventListeners();
 }
 
@@ -151,6 +155,10 @@ export async function startNewGame() {
     // Deal new cards and reinitialize UI
     await distributeCards(shuffledDeck);
     unblockUserInteraction();
+    deleteZeroMoveRecords();
+    moveCurrentGameToStats();
+    updateGameStatsInfo();
+    createNewGameRecord();
 }
 
 /* ============================================================================
@@ -263,6 +271,7 @@ export function recordMove(card, fromContainer, targetContainer) {
         to: targetContainer.id
     };
     handleMoveHistory('add', move);
+    updateCurrentGameStats(score);
 }
 
 /**

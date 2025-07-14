@@ -7,7 +7,7 @@ body {
     font-style: normal;
     background: url(images/background.jpg);
     background-size: 50%;
-    padding-top: 30px;
+    padding: 30px 0;
 }
 
 
@@ -58,13 +58,102 @@ body {
 
 #container {
     max-width: 1200px;
-    margin: auto;
+    margin: 0 auto 30px auto;
     background: url(images/tablebg.jpg);
     border-radius: 15px;
     padding: 30px;
     box-shadow: 0px 0px 10px 10px rgba(0, 0, 0, 0.25);
     position: relative;
 }
+
+details {
+    max-width: 1200px;
+    margin: auto;
+    color: #4C4C4C;
+    background-color: transparent;
+    user-select: none;
+    box-shadow: 0px 0px 10px 10px rgba(0, 0, 0, 0.25);
+    overflow: hidden;
+    max-height: 91px;
+    transition: max-height 0.4s ease-out;
+}
+
+details[open]{
+    max-height: 261px;
+}
+
+details summary::marker,
+:is(::-webkit-details-marker) {
+  content: "♠ ";
+  color: #4C4C4C;
+}
+
+details[open] summary::marker,
+:is(::-webkit-details-marker) {
+  content: "♥ ";
+  color: red;
+}
+
+summary {
+    background-color: rgba(193, 240, 251, 0.6);
+    padding: 20px 20px 15px 20px;
+    border-radius: 15px;
+    font-size: 1.5rem;
+}
+
+details[open] summary {
+    border-radius: 15px 15px 0 0;
+}
+
+summary span {
+    font-family: "Jomhuria", serif;
+    font-weight: 400;
+    font-style: normal;
+    font-size: 3rem;
+}
+
+details[open] #stats-container {
+    background: url(images/tablebg.jpg);
+    border-radius: 0 0 15px 15px;
+    padding: 20px;
+}
+
+#stats-container {
+    display: flex;
+    justify-content: space-between;
+    gap: 15px;
+}
+
+#stats p {
+    margin: 0 0 1em 0;
+    font-size: 1.5em;
+}
+
+#stats p:last-of-type {
+    margin-bottom: 0;
+}
+
+#stats p span {
+    font-weight: bold;
+}
+
+#reset {
+    border: 3px dashed red;
+    border-radius: 10px;
+    padding: 15px;
+    background-color: white;
+    color: #4c4c4c;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    max-width: 50%;
+}
+
+#reset p {
+    margin: 0 0 1em 0;
+}
+
+
 
 
 #ali-baba {
@@ -326,25 +415,6 @@ section:nth-child(odd) {
   will-change: transform;
 }
 
-/* .overlay {
-    width: 85%;
-    height: 85vh;
-    background-color: #eef4d7;
-    margin: auto;
-    display: grid;
-    place-content: center;
-}
-
-.hidden {
-    opacity: 0;
-    z-index: -100;
-}
-
-.showing {
-    opacity: 1;
-    z-index: 100;
-} */
-
 @media screen and (max-width: 1200px) {
   body {
     padding: 30px 20px;
@@ -427,6 +497,18 @@ section:nth-child(odd) {
     }
     #error-message {
         margin: 0;
+    }
+
+    #stats-container {
+        flex-direction: column;
+        justify-content: flex-start;
+    }
+
+    details[open]{
+        max-height: 385px;
+    }
+    #reset {
+        max-width: 100%;
     }
 }
 

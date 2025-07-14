@@ -2,7 +2,9 @@ import { moveCardToCandidate, drawCard, refreshDeck, handleCardClick, handleCard
 
 import { startNewGame, selectedCard } from './game.js';
 
-import { clearSelection, updateUndoButtonText } from './ui.js';
+import { clearSelection, updateUndoButtonText, resetGameStatsInfo } from './ui.js';
+
+import { deleteAllSolitaireUserData } from './stats.js';
 
 
 export function setupEventListeners() {
@@ -24,7 +26,8 @@ export function setupEventListeners() {
         const candidate = e.target.closest('.candidate');
         const deck = e.target.closest('#deck');
         const refresh = e.target.closest('#refresh');
-        const undoBtn = e.target.closest('#undo'); // Add this
+        const undoBtn = e.target.closest('#undo');
+        const resetStats = e.target.closest('#resetstats');
 
         if (undoBtn) {
             handleUndoRequest();
@@ -38,6 +41,11 @@ export function setupEventListeners() {
         if (refresh) {
             refreshDeck();
             return;
+        }
+        if (resetStats) {
+            deleteAllSolitaireUserData();
+            resetGameStatsInfo();
+            startNewGame();
         }
         if (candidate && selectedCard) {
             moveCardToCandidate(candidate, selectedCard);

@@ -93,11 +93,10 @@ export function moveCardToCandidate(candidate, card) {
     const deltaX = candidateRect.left - selectedRect.left;
     const deltaY = candidateRect.top - selectedRect.top;
 
-    recordMove(card, fromContainer, targetContainer);
-
     animateMove(card, deltaX, deltaY, () => {
         handleDOMAfterMove(card, candidate, fromContainer, targetContainer);
         handleScoringAndWin(card, fromContainer, targetContainer);
+        recordMove(card, fromContainer, targetContainer);
     });
 }
 
