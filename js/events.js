@@ -4,11 +4,18 @@ import { startNewGame, selectedCard } from './game.js';
 
 import { clearSelection, updateUndoButtonText } from './ui.js';
 
+
 export function setupEventListeners() {
     window.addEventListener('resize', () => {
-        import('./ui.js').then(({ stackCards, setSectionHeights }) => {
+        import('./ui.js').then(({ stackCards, setSectionHeights, updateCardImageDirectory }) => {
             stackCards();
             setSectionHeights();
+            const windowSize = window.innerWidth;
+            if(windowSize < 850){
+                updateCardImageDirectory('cards', 'cards-small');
+            } else {
+                updateCardImageDirectory('cards-small', 'cards');
+            }
         });
     });
 

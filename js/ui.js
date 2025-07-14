@@ -62,7 +62,6 @@ SECTION: SCREEN MANAGER
 ================================================================================
 */
 
-
 /* --------- DOM UTILITIES ----------- */
 
 export function getContainerById(id) {
@@ -78,11 +77,16 @@ export function moveCardElement(card, targetContainer) {
 }
 
 export function createCardElement(suit, value) {
+    const windowWidth = window.innerWidth;
+    let directoryName = 'cards';
+    if(windowWidth < 850){
+        directoryName = 'cards-small';
+    }
     const card = document.createElement('div');
     card.className = 'card';
     card.setAttribute('data-suit', suit);
     card.setAttribute('data-value', value);
-    card.style.backgroundImage = `url('cards/${suit}${value}.png')`;
+    card.style.backgroundImage = `url('${directoryName}/${suit}${value}.png')`;
     return card;
 }
 
@@ -140,6 +144,22 @@ export function getLastDiscard(lastMove){
         `.card[data-suit="${lastMove.cardId[0]}"][data-value="${lastMove.cardId.slice(1)}"]`
     );
     return cards;
+}
+
+export function updateCardImageDirectory(oldDir, newDir) {
+  // Select all card elements
+  const cards = document.querySelectorAll('.card');
+  cards.forEach(card => {
+    const style = card.getAttribute('style');
+    if (style && style.includes(`url("` + oldDir + `/`)) {
+      // Replace the directory name in the background-image url
+      const newStyle = style.replace(
+        `url("` + oldDir + `/`,
+        `url("` + newDir + `/`
+      );
+      card.setAttribute('style', newStyle);
+    }
+  });
 }
 
 /* --------- LAYOUT MANAGER ----------- */
