@@ -427,7 +427,7 @@ function deductFoundationScore(card) {
     subtractScore(cardValue);
 }
 
-export function checkWinCondition() {
+function checkWinCondition() {
     for (const foundation of foundations) {
         const cards = foundation.querySelectorAll('.card:not(.temp)');
         if (cards.length === 0) return; // Not enough cards
@@ -435,7 +435,15 @@ export function checkWinCondition() {
         if (parseInt(lastCard.getAttribute('data-value')) !== 13) return; // Not a King
     }
     // All foundations end with a King
-    showWinScreen();
+    let winType;
+    if( score == 728 ){
+        winType = 'win';
+    } else {
+        winType = 'clear';
+    }
+    moveCurrentGameToStats();
+    updateGameStatsInfo();
+    showWinScreen(winType);
 }
 
 /* ============================================================================

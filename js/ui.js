@@ -392,12 +392,19 @@ export function resetGameStatsInfo(){
 /* --------- SCREEN MANAGER ----------- */
 
 // Shows the win overlay by updating the win div's class.
-export function showWinScreen() {
+export function showWinScreen( winType ) {
+    let html;
     const mainElement = document.querySelector('main');
     mainElement.className = 'win-container';
-    const html = `<div id="win" class="pop">
-            <h2>congratulations, you cleared it!</h2>
-            </div>`;
+    if( winType == 'clear'){
+        html = `<div id="win" class="pop">
+                <h2>Great!, you cleared cleared the board, but you didn't get all the points.</h2>
+                </div>`;
+    } else if(winType = 'win') {
+        html = `<div id="win" class="pop">
+                <h2>Congratulations! you won and scored all the possible points!</h2>
+                </div>`;
+    }
     mainElement.innerHTML = html;
 }
 
