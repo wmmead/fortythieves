@@ -1,7 +1,7 @@
 // Import UI utilities for positioning, stacking, layout, and deck counter updates
 import { handleDOMAfterMove, clearSelection, deselectCards, createCardElement, placeCardInDiscard, highlightTableauTargets, highlightFoundationTargets, createTempCandidate, updateDeckDisplay, updateScoreDisplay, restoreDeck, handleEmptyDeckAndDiscard, getContainerById, getClassElements, showError } from './ui.js';
 // Import the current shuffled deck from game state
-import { getShuffledDeck, setSelectedCard, setDeckDepleted, getNextCardFromDeck, handleMoveHistory, recordMove, recordDrawMove, handleDeckDepletion, refillDeckFromDiscard, handleScoringAndWin, undoBoardMove, undoDiscardMove, score, getCurrentScore, setScore, refreshCount, setRefreshCount, getRefreshCost, setRefreshDeckClicks, getRefreshDeckClicks } from './game.js';
+import { getShuffledDeck, setSelectedCard, setDeckDepleted, getNextCardFromDeck, handleMoveHistory, recordMove, recordDrawMove, handleDeckDepletion, refillDeckFromDiscard, handleScoringAndWin, undoBoardMove, undoDiscardMove, score, getCurrentScore, setScore, refreshCount, setRefreshCount, getRefreshCost, setRefreshDeckClicks, getRefreshDeckClicks, getStatsDisplayFlagValue,setStatsDisplayFlag } from './game.js';
 // Import animations
 import { animateMove, animateCardDraw } from './animation.js';
 
@@ -101,6 +101,10 @@ export function moveCardToCandidate(candidate, card) {
 }
 
 function moveCardToTarget(target, card) {
+    const statsStateFalse = getStatsDisplayFlagValue();
+    if( statsStateFalse == false ){
+        setStatsDisplayFlag(true);
+    }
     moveCardToCandidate(target, card);
 }
 

@@ -1,6 +1,6 @@
 import { moveCardToCandidate, drawCard, refreshDeck, handleCardClick, handleCardDoubleClick, handleUndoRequest } from './gameActions.js';
 
-import { startNewGame, selectedCard } from './game.js';
+import { startNewGame, selectedCard, setStatsDisplayFlag } from './game.js';
 
 import { clearSelection, updateUndoButtonText, resetGameStatsInfo } from './ui.js';
 
@@ -43,8 +43,13 @@ export function setupEventListeners() {
             return;
         }
         if (resetStats) {
+            // deletes all data
             deleteAllSolitaireUserData();
+            // sets the data in the stats window
             resetGameStatsInfo();
+            // this flag is used in the startNewGame function to determine what is shown in the stats window
+            setStatsDisplayFlag(false);
+            // starts a new game
             startNewGame();
         }
         if (candidate && selectedCard) {

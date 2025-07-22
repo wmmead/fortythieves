@@ -54,6 +54,7 @@ export function getGameStatistics() {
   // Retrieve all game stats from local storage
   const stats = JSON.parse(localStorage.getItem('solitaireGameStats') || '[]');
   const currentGameId = localStorage.getItem('currentGameId');
+  //console.log(stats);
 
   // Filter out the current game and games with zero moves
   const filteredGames = stats.filter(game =>
@@ -86,35 +87,4 @@ export function deleteAllSolitaireUserData() {
   localStorage.removeItem('currentGameId');
   // (Optional) Remove any other keys your game uses in localStorage
   // Example: localStorage.removeItem('someOtherKey');
-}
-
-export function moveCurrentGameToStats() {
-  // Retrieve all game stats from local storage
-  const stats = JSON.parse(localStorage.getItem('solitaireGameStats') || '[]');
-  // Retrieve the current game ID
-  const currentGameId = localStorage.getItem('currentGameId');
-  if (!currentGameId) return;
-
-  // Try to find the current game data in stats (to avoid duplicates)
-  const alreadyIncluded = stats.some(game => game.id === currentGameId);
-  if (alreadyIncluded) {
-    // Optionally clear currentGameId if you want
-    localStorage.removeItem('currentGameId');
-    return;
-  }
-
-  // Retrieve the current game data (replace this with your actual game state retrieval)
-  // For example, if you store current game data in 'currentGameData':
-  const currentGameData = JSON.parse(localStorage.getItem('currentGameData') || 'null');
-  if (!currentGameData) return;
-
-  // Add the current game data to the stats array
-  stats.push(currentGameData);
-
-  // Save the updated stats back to local storage
-  localStorage.setItem('solitaireGameStats', JSON.stringify(stats));
-
-  // Remove the current game references
-  localStorage.removeItem('currentGameId');
-  localStorage.removeItem('currentGameData');
 }

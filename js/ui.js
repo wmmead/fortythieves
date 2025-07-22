@@ -1,4 +1,4 @@
-import { shuffledDeck, setSelectedCard, undoCount, isValidTableauMove, isValidFoundationMove, refreshCount, getRefreshCost } from './game.js';
+import { setSelectedCard, undoCount, isValidTableauMove, isValidFoundationMove, refreshCount, getRefreshCost } from './game.js';
 import { shakeElement } from './animation.js';
 import { getGameStatistics } from './stats.js';
 
@@ -52,6 +52,7 @@ SECTION: GAME DISPLAY
 - updateScoreDisplay(score): Update the displayed score.
 - setCardBackgrounds(): Set background images for all cards based on their suit and value.
 - updateGameStatsInfo(): Sets the DOM so show the current stats
+- updateEndGameStats(): Sets the stats window at the end of the game to show stats + current game.
 - resetGameStatsInfo(): resets the stats in the DOM screen
 
 SECTION: SCREEN MANAGER
@@ -327,7 +328,7 @@ export function updateDeckCounter() {
     if (!deckDiv) return;
 
     // Log the number of cards left in the deck
-    console.log('Cards left in deck:', shuffledDeck.length);
+    //console.log('Cards left in deck:', shuffledDeck.length);
 
     if (!deckCounter) {
         // Create the counter if it doesn't exist
@@ -375,12 +376,19 @@ export function setCardBackgrounds() {
 
 export function updateGameStatsInfo(){
     const currentGameStats = getGameStatistics();
-    console.log('current games played: ' + currentGameStats.gamesPlayed);
+    //console.log('current games played: ' + currentGameStats.gamesPlayed);
     if( currentGameStats.gamesPlayed ){
         document.querySelector('#played').textContent = currentGameStats.gamesPlayed;
         document.querySelector('#average').textContent = currentGameStats.averageScore;
         document.querySelector('#wins').textContent = currentGameStats.gamesWon;
     }
+}
+
+export function updateEndGameStats(numOfGames, numWins, average){
+    document.querySelector('#played').textContent = numOfGames;
+    document.querySelector('#average').textContent = average;
+    document.querySelector('#wins').textContent = numWins;
+
 }
 
 export function resetGameStatsInfo(){
@@ -433,7 +441,7 @@ export function blockUserInteraction() {
         blocker.style.top = '0';
         blocker.style.left = '0';
         blocker.style.width = '100vw';
-        blocker.style.height = '100vh';
+        blocker.style.height = '200vh';
         blocker.style.zIndex = '9999';
         blocker.style.background = 'rgba(0,0,0,0)'; // invisible
         blocker.style.pointerEvents = 'all';

@@ -1,8 +1,8 @@
 // Import UI update functions for card stacking, layout, and deck counter
-import { stackCards, setSectionHeights, createCardElement, blockUserInteraction, unblockUserInteraction, setDeckRefresh, setRefreshToEmpty, restoreDeck, clearBoard, updateUndoButtonText, updateDeckCounter, getContainerById, getClassElements, getLastDiscard, findCardInContainer, moveCardElement, updateCardStyle, restackCards, updateSectionHeights, showError, updateScoreDisplay, showWinScreen, resetMain, updateGameStatsInfo } from './ui.js';
+import { stackCards, setSectionHeights, createCardElement, blockUserInteraction, unblockUserInteraction, setDeckRefresh, setRefreshToEmpty, restoreDeck, clearBoard, updateUndoButtonText, updateDeckCounter, getContainerById, getClassElements, getLastDiscard, findCardInContainer, moveCardElement, updateCardStyle, restackCards, updateSectionHeights, showError, updateScoreDisplay, showWinScreen, resetMain, updateGameStatsInfo, updateEndGameStats } from './ui.js';
 import { getCardMoveDelta, animateMove } from './animation.js';
 import { setupEventListeners } from './events.js';
-import { createNewGameRecord, updateCurrentGameStats, deleteZeroMoveRecords, moveCurrentGameToStats } from './stats.js';
+import { createNewGameRecord, updateCurrentGameStats, deleteZeroMoveRecords, getGameStatistics } from './stats.js';
 
 /*
 ================================================================================
@@ -11,6 +11,7 @@ Game Logic Module - Section and Function Index
 
 MODULE-LEVEL VARIABLES & CONSTANTS
 ----------------------------------
+- statsDisplayFlag: Used to determine whether stats shown in the window are from the database or from the calulation
 - foundations: NodeList of all foundation containers.
 - deckDepleted: Boolean flag indicating if the deck is empty.
 - moveHistory: Array tracking all moves made in the game.
@@ -59,7 +60,10 @@ SCORING & GAME PROGRESSION
 - addScore(points): Add points to the score and update display.
 - subtractScore(points): Subtract points from the score and update display.
 - deductFoundationScore(card): Internal helper to subtract score for foundation undo.
+- lastGameData(): gets the data from the last, most current game
 - checkWinCondition(): Check if the win condition is met (all foundations end with a King).
+- setStatsDisplayFlag(): exported helper function for setting the statsDisplayFlag variable
+- getStatsDisplayFlagValue(): exported function for getting the statsDisplayFlag variable.
 
 DECK REFRESH & COST MANAGEMENT
 ------------------------------
@@ -75,6 +79,7 @@ DECK REFRESH & COST MANAGEMENT
 ============================================================================ */
 
 const foundations = getClassElements('foundation');
+let statsDisplayFlag = false;
 export let deckDepleted = false;
 export const moveHistory = [];
 export let shuffledDeck = [];
@@ -148,6 +153,17 @@ export async function startNewGame() {
     setRefreshCount(0);
     // set resetDeckClicks
     setRefreshDeckClicks(0);
+    // determine what is shown in the stats window
+    console.log(statsDisplayFlag);
+    if(statsDisplayFlag){
+        const mostRecentGame = lastGameData();
+        console.log(mostRecentGame);
+        updateEndGameStats(mostRecentGame[0], mostRecentGame[2], mostRecentGame[1]);
+    } else {
+        updateGameStatsInfo();
+    }
+    setStatsDisplayFlag(false);
+    deleteZeroMoveRecords();
     // reset score to zero
     score = 0;
     // update score display
@@ -155,9 +171,6 @@ export async function startNewGame() {
     // Deal new cards and reinitialize UI
     await distributeCards(shuffledDeck);
     unblockUserInteraction();
-    deleteZeroMoveRecords();
-    moveCurrentGameToStats();
-    updateGameStatsInfo();
     createNewGameRecord();
 }
 
@@ -427,6 +440,21 @@ function deductFoundationScore(card) {
     subtractScore(cardValue);
 }
 
+function lastGameData(){
+    const currentGameStats = getGameStatistics();
+    const numOfGames = currentGameStats.gamesPlayed;
+    const updatedGameCount = numOfGames + 1;
+    const average = currentGameStats.averageScore;
+    const newAverage = (numOfGames * average + score) / (updatedGameCount);
+    const numWins = currentGameStats.gamesWon;
+    let newWinCount = numWins;
+    if( score == 728 ){
+        newWinCount++;
+    }
+    const gameData = [updatedGameCount, newAverage, newWinCount];
+    return gameData;
+}
+
 function checkWinCondition() {
     for (const foundation of foundations) {
         const cards = foundation.querySelectorAll('.card:not(.temp)');
@@ -435,15 +463,31 @@ function checkWinCondition() {
         if (parseInt(lastCard.getAttribute('data-value')) !== 13) return; // Not a King
     }
     // All foundations end with a King
+
+    const mostRecentGame = lastGameData();
+    updateEndGameStats(mostRecentGame[0], mostRecentGame[2], mostRecentGame[1]);
+    
     let winType;
     if( score == 728 ){
         winType = 'win';
     } else {
         winType = 'clear';
     }
-    moveCurrentGameToStats();
-    updateGameStatsInfo();
+    // changes the message in the win screen based on the type of win
     showWinScreen(winType);
+    setStatsDisplayFlag(true);
+}
+
+export function setStatsDisplayFlag(value){
+    statsDisplayFlag = value;
+}
+
+export function getStatsDisplayFlagValue(){
+    if(statsDisplayFlag){
+        return true;
+    } else {
+        return false;
+    }
 }
 
 /* ============================================================================
