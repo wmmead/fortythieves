@@ -2,7 +2,7 @@ import { moveCardToCandidate, drawCard, refreshDeck, handleCardClick, handleCard
 
 import { startNewGame, selectedCard, setStatsDisplayFlag } from './game.js';
 
-import { clearSelection, updateUndoButtonText, resetGameStatsInfo } from './ui.js';
+import { clearSelection, updateUndoButtonText, resetGameStatsInfo, updateDeckDisplay } from './ui.js';
 
 import { deleteAllSolitaireUserData } from './stats.js';
 
@@ -36,6 +36,7 @@ export function setupEventListeners() {
         }
         if (deck) {
             drawCard();
+            updateDeckDisplay();
             return;
         }
         if (refresh) {

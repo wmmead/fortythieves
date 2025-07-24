@@ -14,7 +14,7 @@ It is possible to move cards, one at a time, from the foundation back to the tab
 
 There is an undo button. Using it for the first time costs 1 point. The second time will cost 2 points, and the cost will continue to go up with each use of the button. If you don’t have enough points, you can not undo.
 
-Once you have exhausted the deck you can pay 100 points to restore it an go through again. Note that the deck is not shuffled, and the card at the bottom of the discard pile will come up first, the second card, second, etc. Each refilling of the deck costs an additional 100 points. So the third time through the deck will cost 200 points.
+Once you have exhausted the deck you can pay points to restore it an go through again. The cost to refresh the deck is calculated based on the points you have against all the possible points. The total possible is 728, if you do not undo any moves. The cost to refresh the deck is determined by subtracting the points you have from the 728 total, then getting 25% of that amount (rounded up). So, if you have 200 points in your score, the amount left is 528. 25% of that is 132, which is what it will cost to refresh the deck. Note that the deck is not shuffled, and the card at the bottom of the discard pile will come up first, the second card, second, etc.
 
 ## Strategy
 

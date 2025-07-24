@@ -189,6 +189,20 @@ header {
     place-self: center;
     cursor: pointer;
     box-shadow: 3px 3px 4px 2px rgba(59, 64, 88, 0.7);
+    display: grid;
+    place-content: center;
+    user-select: none;
+}
+
+#deck-counter {
+    aspect-ratio: 1/1;
+    border-radius: 50%;
+    background-color: white;
+    display: grid;
+    place-content: center;
+    padding: 5px;
+    border: 1px solid #666;
+    user-select: none;
 }
 
 #refresh {
@@ -196,13 +210,22 @@ header {
     aspect-ratio: 500 / 726;
     border: 1px solid #666;
     border-radius: 5px;
-    background-image: url(images/cardback-red.png);
+    background-image: url(images/cardback-yellow.png);
     background-size: cover;
     background-repeat: no-repeat;
     place-self: center;
     display: grid;
     place-content: center;
     cursor: pointer;
+}
+
+#refresh span {
+    padding: 5px;
+    border: 1px solid #666;
+    background-color: white;
+    border-radius: 5px;
+    user-select: none;
+    text-align: center;
 }
 
 #discard {

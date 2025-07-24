@@ -1,4 +1,4 @@
-import { setSelectedCard, undoCount, isValidTableauMove, isValidFoundationMove, refreshCount, getRefreshCost } from './game.js';
+import { shuffledDeck, setSelectedCard, undoCount, isValidTableauMove, isValidFoundationMove, getRefreshCost } from './game.js';
 import { shakeElement } from './animation.js';
 import { getGameStatistics } from './stats.js';
 
@@ -139,8 +139,8 @@ export function setRefreshToEmpty(){
 
 export function setDeckRefresh(deckDiv){
     deckDiv.id = 'refresh';
-    const cost = (refreshCount + 1 ) * getRefreshCost();
-    deckDiv.textContent = `reset (${cost} pts)`;
+    const cost = getRefreshCost();
+    deckDiv.innerHTML = `<span>reset<br>(${cost} pts)</span>`;
 }
 
 export function getLastDiscard(lastMove){
@@ -327,25 +327,16 @@ export function updateDeckCounter() {
     const deckDiv = document.getElementById('deck');
     if (!deckDiv) return;
 
-    // Log the number of cards left in the deck
-    //console.log('Cards left in deck:', shuffledDeck.length);
-
     if (!deckCounter) {
         // Create the counter if it doesn't exist
         const counter = document.createElement('div');
         counter.id = 'deck-counter';
-        counter.textContent = deckDiv.shuffledDeck ? deckDiv.shuffledDeck.length : '';
-        counter.style.position = 'absolute';
-        counter.style.top = '50%';
-        counter.style.left = '50%';
-        counter.style.transform = 'translate(-50%, -50%)';
-        counter.style.color = 'white';
-        counter.style.fontSize = '24px';
-        counter.style.fontWeight = 'bold';
+        const deckCount = document.createTextNode(shuffledDeck.length);
+        console.log(deckCount);
+        counter.appendChild(deckCount);
         deckDiv.appendChild(counter);
     } else {
-        // Update the counter if it exists
-        deckCounter.textContent = deckDiv.shuffledDeck ? deckDiv.shuffledDeck.length : '';
+        deckCounter.textContent = shuffledDeck.length;
     }
 }
 

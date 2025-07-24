@@ -1,5 +1,5 @@
 // Import UI update functions for card stacking, layout, and deck counter
-import { stackCards, setSectionHeights, createCardElement, blockUserInteraction, unblockUserInteraction, setDeckRefresh, setRefreshToEmpty, restoreDeck, clearBoard, updateUndoButtonText, updateDeckCounter, getContainerById, getClassElements, getLastDiscard, findCardInContainer, moveCardElement, updateCardStyle, restackCards, updateSectionHeights, showError, updateScoreDisplay, showWinScreen, resetMain, updateGameStatsInfo, updateEndGameStats } from './ui.js';
+import { stackCards, setSectionHeights, createCardElement, blockUserInteraction, unblockUserInteraction, setDeckRefresh, setRefreshToEmpty, restoreDeck, clearBoard, updateUndoButtonText, updateDeckCounter, getContainerById, getClassElements, getLastDiscard, findCardInContainer, moveCardElement, updateCardStyle, restackCards, updateSectionHeights, showError, updateScoreDisplay, updateDeckDisplay, showWinScreen, resetMain, updateGameStatsInfo, updateEndGameStats } from './ui.js';
 import { getCardMoveDelta, animateMove } from './animation.js';
 import { setupEventListeners } from './events.js';
 import { createNewGameRecord, updateCurrentGameStats, deleteZeroMoveRecords, getGameStatistics } from './stats.js';
@@ -67,6 +67,7 @@ SCORING & GAME PROGRESSION
 
 DECK REFRESH & COST MANAGEMENT
 ------------------------------
+- calcullateDeckRefreshCost() Calculates the refresh cost based on the number of points left available
 - setUndoCount(value): Set the undo count.
 - setRefreshCount(value): Set the refresh count.
 
@@ -86,9 +87,7 @@ export let shuffledDeck = [];
 export let selectedCard = null;
 export let score = 0;
 export let undoCount = 0;
-export let refreshCount = 0;
-export let refreshCost = 100;
-export let refreshDeckClicks = 0;
+export let refreshCost = 0;
 // Full list of card identifiers for two standard decks (104 cards)
 const cardValues = [
     'c1', 'd1', 'h1', 's1', 
@@ -124,6 +123,7 @@ const cardValues = [
 ============================================================================ */
 export async function initGame() {
     await distributeCards(shuffledDeck);
+    updateDeckDisplay();
     deleteZeroMoveRecords();
     updateGameStatsInfo();
     createNewGameRecord();
@@ -149,10 +149,6 @@ export async function startNewGame() {
     // Reset deck and discard containers
     const deckDiv = getContainerById('deck') || getContainerById('refresh') || getContainerById('empty');
     restoreDeck(deckDiv)
-    // reset refreshCount to zero
-    setRefreshCount(0);
-    // set resetDeckClicks
-    setRefreshDeckClicks(0);
     // determine what is shown in the stats window
     console.log(statsDisplayFlag);
     if(statsDisplayFlag){
@@ -170,6 +166,7 @@ export async function startNewGame() {
     updateScoreDisplay(score);
     // Deal new cards and reinitialize UI
     await distributeCards(shuffledDeck);
+    updateDeckDisplay();
     unblockUserInteraction();
     createNewGameRecord();
 }
@@ -366,7 +363,6 @@ export function undoDiscardMove() {
     shuffledDeck.unshift(lastMove.cardId); // Put card string back on top of deck
 
     // --- Edge case fix: If the deck was empty, restore deck element and state ---
-    updateRefreshButtonToDeck();
     setDeckDepleted(false);
     updateDeckCounter();
 }
@@ -446,12 +442,15 @@ function lastGameData(){
     const updatedGameCount = numOfGames + 1;
     const average = currentGameStats.averageScore;
     const newAverage = (numOfGames * average + score) / (updatedGameCount);
+    // Round newAverage to two decimal places
+    const roundedAverage = Number(newAverage.toFixed(2));
+
     const numWins = currentGameStats.gamesWon;
     let newWinCount = numWins;
-    if( score == 728 ){
+    if (score == 728) {
         newWinCount++;
     }
-    const gameData = [updatedGameCount, newAverage, newWinCount];
+    const gameData = [updatedGameCount, roundedAverage, newWinCount];
     return gameData;
 }
 
@@ -494,23 +493,24 @@ export function getStatsDisplayFlagValue(){
    DECK REFRESH & COST MANAGEMENT
 ============================================================================ */
 
+function calcullateDeckRefreshCost(score, undoCount) {
+  // Calculate total points spent on using the undo button
+  let undoPoints = undoCount * (undoCount + 1) / 2;
+  // Add undo points to the score
+  let totalScore = score + undoPoints;
+  // Subtract the total from 728
+  let difference = 728 - totalScore;
+  // Multiply the result by 0.25
+  let finalValue = Math.ceil(difference * 0.25);
+  return finalValue;
+}
+
 export function setUndoCount(value) {
     undoCount = value;
 }
 
-export function setRefreshCount(value) {
-    refreshCount = value;
-}
-
 export function getRefreshCost(){
-    return refreshCost;
-}
-
-export function setRefreshDeckClicks(value){
-    refreshDeckClicks = value;
-}
-
-export function getRefreshDeckClicks(){
-    return refreshDeckClicks;
+    const cost = calcullateDeckRefreshCost(score, undoCount);
+    return cost;
 }
 
