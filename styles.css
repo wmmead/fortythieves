@@ -46,11 +46,11 @@ header h1 #logo {
 }
 
 #empty {
-    background-image: url(images/thief4.png);
+    background-image: url(images/thief-heart.png);
     background-size: 60%;
     background-position: center;
     background-repeat: no-repeat;
-    opacity: 0.3;
+    opacity: 0.5;
 }
 
 @container heading (max-width: 220px) {
