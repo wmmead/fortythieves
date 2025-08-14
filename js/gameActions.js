@@ -72,15 +72,32 @@ export function showCandidateTargets(card) {
 
 export function handleCardClick(card) {
     clearSelection();
+
+    const parent = card.parentElement;
+    // Tableau: Only bottom card can be selected
+    if (parent.tagName === 'SECTION') {
+    const cards = parent.querySelectorAll('.card:not(.temp)');
+    if (cards[cards.length - 1] !== card) return; // Not the bottom card
+    } 
+    // Foundation: Only top card can be selected
+    else if (parent.classList.contains('foundation')) {
+    const cards = parent.querySelectorAll('.card:not(.temp)');
+    if (cards[cards.length - 1] !== card) return; // Not the top card
+    }
+    // Deck or Discard: Only top card selectable
+    else if (parent.id === 'deck' || parent.id === 'discard') {
+    const cards = parent.querySelectorAll('.card:not(.temp)');
+    if (cards.length === 0 || cards[cards.length - 1] !== card) return; // Not top card
+    }
+
+    // Passed all checks; now select this card
     card.classList.add('selected');
     setSelectedCard(card);
-    gsap.to(card, {
-        scale: 1.05,
-        duration: 0.2,
-        ease: "power1.out"
-    });
+    gsap.to(card, { scale: 1.05, duration: 0.2, ease: "power1.out" });
     showCandidateTargets(card);
 }
+
+
 
 /* ============================================================================
    CARD MOVEMENT & ANIMATION
@@ -112,6 +129,24 @@ function moveCardToTarget(target, card) {
    AUTOMATIC MOVE HANDLING (DOUBLE-CLICK)
 ============================================================================ */
 export function handleCardDoubleClick(card) {
+    const parent = card.parentElement;
+    // Tableau: Only bottom card can be selected
+    if (parent.tagName === 'SECTION') {
+    const cards = parent.querySelectorAll('.card:not(.temp)');
+    if (cards[cards.length - 1] !== card) return; // Not the bottom card
+    } 
+    // Foundation: Only top card can be selected
+    else if (parent.classList.contains('foundation')) {
+    const cards = parent.querySelectorAll('.card:not(.temp)');
+    if (cards[cards.length - 1] !== card) return; // Not the top card
+    }
+    // Deck or Discard: Only top card selectable
+    else if (parent.id === 'deck' || parent.id === 'discard') {
+    const cards = parent.querySelectorAll('.card:not(.temp)');
+    if (cards.length === 0 || cards[cards.length - 1] !== card) return; // Not top card
+    }
+
+    // Passed all checks; now select this card
     const sourceElement = card.parentElement;
     // Priority 1: Foundation
     for (const foundation of foundations) {
