@@ -1,7 +1,7 @@
 // Import UI utilities for positioning, stacking, layout, and deck counter updates
 import { handleDOMAfterMove, clearSelection, deselectCards, createCardElement, placeCardInDiscard, highlightTableauTargets, highlightFoundationTargets, createTempCandidate, updateDeckDisplay, updateScoreDisplay, restoreDeck, handleEmptyDeckAndDiscard, getContainerById, getClassElements, showError } from './ui.js';
 // Import the current shuffled deck from game state
-import { getShuffledDeck, setSelectedCard, setDeckDepleted, getNextCardFromDeck, handleMoveHistory, recordMove, recordDrawMove, handleDeckDepletion, refillDeckFromDiscard, handleScoringAndWin, undoBoardMove, undoDiscardMove, score, getCurrentScore, setScore,  getRefreshCost, getStatsDisplayFlagValue, setStatsDisplayFlag } from './game.js';
+import { getShuffledDeck, setSelectedCard, setDeckDepleted, getNextCardFromDeck, handleMoveHistory, recordMove, recordDrawMove, handleDeckDepletion, refillDeckFromDiscard, handleScoringAndWin, undoBoardMove, undoDiscardMove, score, getCurrentScore, setScore,  getRefreshCost, getStatsDisplayFlagValue, setStatsDisplayFlag, olenMode } from './game.js';
 // Import animations
 import { animateMove, animateCardDraw } from './animation.js';
 
@@ -73,28 +73,44 @@ export function showCandidateTargets(card) {
 export function handleCardClick(card) {
     clearSelection();
 
-    const parent = card.parentElement;
-    // Tableau: Only bottom card can be selected
-    if (parent.tagName === 'SECTION') {
-    const cards = parent.querySelectorAll('.card:not(.temp)');
-    if (cards[cards.length - 1] !== card) return; // Not the bottom card
-    } 
-    // Foundation: Only top card can be selected
-    else if (parent.classList.contains('foundation')) {
-    const cards = parent.querySelectorAll('.card:not(.temp)');
-    if (cards[cards.length - 1] !== card) return; // Not the top card
+    if(!olenMode){
+        const legalMove = checkCardPosition(card);
+        if(!legalMove){
+            return;
+        }
     }
-    // Deck or Discard: Only top card selectable
-    else if (parent.id === 'deck' || parent.id === 'discard') {
-    const cards = parent.querySelectorAll('.card:not(.temp)');
-    if (cards.length === 0 || cards[cards.length - 1] !== card) return; // Not top card
-    }
-
     // Passed all checks; now select this card
     card.classList.add('selected');
     setSelectedCard(card);
     gsap.to(card, { scale: 1.05, duration: 0.2, ease: "power1.out" });
     showCandidateTargets(card);
+}
+
+function checkCardPosition(card){
+    let legalMove = true;
+    const parent = card.parentElement;
+    // Tableau: Only bottom card can be selected
+    if (parent.tagName === 'SECTION') {
+    const cards = parent.querySelectorAll('.card:not(.temp)');
+        if (cards[cards.length - 1] !== card){
+            legalMove = false;
+        } // Not the bottom card
+    } 
+    // Foundation: Only top card can be selected
+    else if (parent.classList.contains('foundation')) {
+    const cards = parent.querySelectorAll('.card:not(.temp)');
+        if (cards[cards.length - 1] !== card){
+            legalMove = false;
+        } // Not the top card
+    }
+    // Deck or Discard: Only top card selectable
+    else if (parent.id === 'deck' || parent.id === 'discard') {
+    const cards = parent.querySelectorAll('.card:not(.temp)');
+        if (cards.length === 0 || cards[cards.length - 1] !== card){
+            legalMove = false;
+        } // Not top card
+    }
+    return legalMove;
 }
 
 
@@ -129,23 +145,13 @@ function moveCardToTarget(target, card) {
    AUTOMATIC MOVE HANDLING (DOUBLE-CLICK)
 ============================================================================ */
 export function handleCardDoubleClick(card) {
-    const parent = card.parentElement;
-    // Tableau: Only bottom card can be selected
-    if (parent.tagName === 'SECTION') {
-    const cards = parent.querySelectorAll('.card:not(.temp)');
-    if (cards[cards.length - 1] !== card) return; // Not the bottom card
-    } 
-    // Foundation: Only top card can be selected
-    else if (parent.classList.contains('foundation')) {
-    const cards = parent.querySelectorAll('.card:not(.temp)');
-    if (cards[cards.length - 1] !== card) return; // Not the top card
+    
+    if(!olenMode){
+        const legalMove = checkCardPosition(card);
+        if(!legalMove){
+            return;
+        }
     }
-    // Deck or Discard: Only top card selectable
-    else if (parent.id === 'deck' || parent.id === 'discard') {
-    const cards = parent.querySelectorAll('.card:not(.temp)');
-    if (cards.length === 0 || cards[cards.length - 1] !== card) return; // Not top card
-    }
-
     // Passed all checks; now select this card
     const sourceElement = card.parentElement;
     // Priority 1: Foundation

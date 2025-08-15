@@ -1,4 +1,4 @@
-import { shuffledDeck, setSelectedCard, undoCount, isValidTableauMove, isValidFoundationMove, getRefreshCost } from './game.js';
+import { shuffledDeck, setSelectedCard, undoCount, isValidTableauMove, isValidFoundationMove, getRefreshCost, olenMode } from './game.js';
 import { shakeElement } from './animation.js';
 import { getGameStatistics } from './stats.js';
 
@@ -476,5 +476,13 @@ export function handleDOMAfterMove(card, candidate, fromContainer, targetContain
 
     if (candidate.classList.contains('temp')) {
         candidate.remove();
+    }
+}
+
+export function olenModeDisplay(){
+    if(olenMode){
+        document.querySelector('#olenmode').textContent = ": Olen mode on";
+    } else {
+        document.querySelector('#olenmode').textContent = "";
     }
 }

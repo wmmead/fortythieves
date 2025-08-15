@@ -80,6 +80,7 @@ DECK REFRESH & COST MANAGEMENT
 ============================================================================ */
 
 const foundations = getClassElements('foundation');
+export let olenMode = false;
 let statsDisplayFlag = false;
 export let deckDepleted = false;
 export const moveHistory = [];
@@ -512,5 +513,9 @@ export function setUndoCount(value) {
 export function getRefreshCost(){
     const cost = calcullateDeckRefreshCost(score, undoCount);
     return cost;
+}
+
+export function setOlenMode(value) {
+    olenMode = value;
 }
 

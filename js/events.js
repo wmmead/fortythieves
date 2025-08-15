@@ -1,8 +1,8 @@
 import { moveCardToCandidate, drawCard, refreshDeck, handleCardClick, handleCardDoubleClick, handleUndoRequest } from './gameActions.js';
 
-import { startNewGame, selectedCard, setStatsDisplayFlag } from './game.js';
+import { startNewGame, selectedCard, setStatsDisplayFlag, setOlenMode } from './game.js';
 
-import { clearSelection, updateUndoButtonText, resetGameStatsInfo, updateDeckDisplay } from './ui.js';
+import { clearSelection, updateUndoButtonText, resetGameStatsInfo, updateDeckDisplay, olenModeDisplay } from './ui.js';
 
 import { deleteAllSolitaireUserData } from './stats.js';
 
@@ -75,4 +75,44 @@ export function setupEventListeners() {
             startNewGame();
         });
     });
+
+    // --- HOLD HEADER FOR 2 SECONDS HANDLER ---
+    const header = document.querySelector('h1');
+    let holdTimer = null;
+    const holdDuration = 2000;
+
+    function handleHoldHeader() {
+        const mode = prompt('type "true" to enable Olen mode, "false" to disable Olen mode');
+        if(mode === 'true'){
+            const convertToBoolean = Boolean(mode);
+            setOlenMode(convertToBoolean);
+        } else {
+            setOlenMode(false);
+        }
+        olenModeDisplay();
+    }
+
+    if (header) {
+        // Mouse events for desktop
+        header.addEventListener("mousedown", () => {
+            holdTimer = setTimeout(handleHoldHeader, holdDuration);
+        });
+        header.addEventListener("mouseup", () => {
+            clearTimeout(holdTimer);
+        });
+        header.addEventListener("mouseleave", () => {
+            clearTimeout(holdTimer);
+        });
+
+        // Touch events for mobile
+        header.addEventListener("touchstart", () => {
+            holdTimer = setTimeout(handleHoldHeader, holdDuration);
+        });
+        header.addEventListener("touchend", () => {
+            clearTimeout(holdTimer);
+        });
+        header.addEventListener("touchmove", () => {
+            clearTimeout(holdTimer);
+        });
+    }
 }
