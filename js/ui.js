@@ -209,7 +209,7 @@ export function stackCards() {
     stacks.forEach(stack => {
         const cards = stack.querySelectorAll('.card:not(.temp)');
         cards.forEach((card, i) => {
-            card.style.top = `${(i * staggerCards) + setHeightOffset('main section')}px`;
+            card.style.top = `${(i * staggerCards) + setHeightOffset('#tableau-container section')}px`;
         });
     });
 }
@@ -393,8 +393,8 @@ export function resetGameStatsInfo(){
 // Shows the win overlay by updating the win div's class.
 export function showWinScreen( winType ) {
     let html;
-    const mainElement = document.querySelector('main');
-    mainElement.className = 'win-container';
+    const tableau = document.querySelector('#tableau-container');
+    tableau.className = 'win-container';
     if( winType == 'clear'){
         html = `<div id="win" class="pop">
                 <h2>Great!, you cleared cleared the board, but you didn't get all the points.</h2>
@@ -404,13 +404,13 @@ export function showWinScreen( winType ) {
                 <h2>Congratulations! you won and scored all the possible points!</h2>
                 </div>`;
     }
-    mainElement.innerHTML = html;
+    tableau.innerHTML = html;
 }
 
 export function resetMain(){
-    const mainEl = document.querySelector('main');
-    mainEl.removeAttribute('class');
-    mainEl.innerHTML = `<section id="s1"></section>
+    const tableau = document.querySelector('#tableau-container');
+    tableau.removeAttribute('class');
+    tableau.innerHTML = `<section id="s1"></section>
             <section id="s2"></section>
             <section id="s3"></section>
             <section id="s4"></section>
@@ -479,9 +479,18 @@ export function handleDOMAfterMove(card, candidate, fromContainer, targetContain
     }
 }
 
+export function toggleMenu() {
+    const menu = document.querySelector('#menu');
+    if(menu.className == 'open'){
+        menu.className = 'close';
+    } else {
+        menu.className = 'open';
+    }
+}
+
 export function olenModeDisplay(){
     if(olenMode){
-        document.querySelector('#olenmode').textContent = ": Olen mode on";
+        document.querySelector('#olenmode').textContent = "Olen mode";
     } else {
         document.querySelector('#olenmode').textContent = "";
     }

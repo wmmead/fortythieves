@@ -2,7 +2,7 @@ import { moveCardToCandidate, drawCard, refreshDeck, handleCardClick, handleCard
 
 import { startNewGame, selectedCard, setStatsDisplayFlag, setOlenMode } from './game.js';
 
-import { clearSelection, updateUndoButtonText, resetGameStatsInfo, updateDeckDisplay, olenModeDisplay } from './ui.js';
+import { clearSelection, updateUndoButtonText, resetGameStatsInfo, updateDeckDisplay, toggleMenu, olenModeDisplay } from './ui.js';
 
 import { deleteAllSolitaireUserData } from './stats.js';
 
@@ -28,6 +28,7 @@ export function setupEventListeners() {
         const refresh = e.target.closest('#refresh');
         const undoBtn = e.target.closest('#undo');
         const resetStats = e.target.closest('#resetstats');
+        const hamburgermenu = e.target.closest('#hamburgermenu');
 
         if (undoBtn) {
             handleUndoRequest();
@@ -42,6 +43,9 @@ export function setupEventListeners() {
         if (refresh) {
             refreshDeck();
             return;
+        }
+        if (hamburgermenu){
+            toggleMenu();
         }
         if (resetStats) {
             // deletes all data
