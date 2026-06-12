@@ -1,4 +1,4 @@
-import { shuffledDeck, setSelectedCard, undoCount, isValidTableauMove, isValidFoundationMove, getRefreshCost, olenMode } from './game.js';
+import { shuffledDeck, setSelectedCard, undoCount, isValidTableauMove, isValidFoundationMove, getRefreshCost, olenMode, canUndo } from './game.js';
 import { shakeElement } from './animation.js';
 import { getGameStatistics } from './stats.js';
 import { renderStatsGraph } from './statsGraph.js';
@@ -350,6 +350,7 @@ export function updateUndoButtonText() {
     if (undoBtn) {
         const nextCost = undoCount + 1;
         undoBtn.textContent = `Undo (-${nextCost} point${nextCost > 1 ? 's' : ''})`;
+        undoBtn.classList.toggle('disabled', !canUndo());
     }
 }
 export function updateScoreDisplay(score) {

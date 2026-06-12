@@ -51,6 +51,7 @@ UNDO & REDO OPERATIONS
 - undoBoardMove(): Undo the last board move, animate and update UI.
 - undoDiscardMove(): Undo the last discard move, restore card to deck.
 - handleUndoCost(): Deduct score for undoing, update undo count and button.
+- canUndo(): Returns true if an undo is currently possible (history, points, game not over).
 - payUndoCost(): Internal helper to check and pay undo cost.
 - popLastMove(): Internal helper to pop the last move from history.
 
@@ -82,6 +83,7 @@ DECK REFRESH & COST MANAGEMENT
 const foundations = getClassElements('foundation');
 export let olenMode = false;
 let statsDisplayFlag = false;
+let gameOver = false;
 export let deckDepleted = false;
 export const moveHistory = [];
 export let shuffledDeck = [];
@@ -123,6 +125,7 @@ const cardValues = [
    INITIALIZATION & SETUP
 ============================================================================ */
 export async function initGame() {
+    updateUndoButtonText();
     await distributeCards(shuffledDeck);
     updateDeckDisplay();
     deleteZeroMoveRecords();
@@ -159,8 +162,12 @@ export async function startNewGame() {
     }
     setStatsDisplayFlag(false);
     deleteZeroMoveRecords();
-    // reset score to zero
+    // reset score and undo state to zero
     score = 0;
+    moveHistory.length = 0;
+    setUndoCount(0);
+    gameOver = false;
+    updateUndoButtonText();
     // update score display
     updateScoreDisplay(score);
     // Deal new cards and reinitialize UI
@@ -271,6 +278,7 @@ export function recordDrawMove(cardId) {
         from: 'deck',
         to: 'discard'
     });
+    updateUndoButtonText();
 }
 
 export function recordMove(card, fromContainer, targetContainer) {
@@ -281,6 +289,7 @@ export function recordMove(card, fromContainer, targetContainer) {
     };
     handleMoveHistory('add', move);
     updateCurrentGameStats(score);
+    updateUndoButtonText();
 }
 
 /**
@@ -414,12 +423,14 @@ export function handleScoringAndWin(card, fromContainer, targetContainer) {
 export function addScore(points) {
     score += points;
     updateScoreDisplay(score);
+    updateUndoButtonText();
 }
 
 export function subtractScore(points) {
     score -= points;
     if (score < 0) score = 0;
     updateScoreDisplay(score);
+    updateUndoButtonText();
 }
 
 export function getCurrentScore(score){
@@ -461,6 +472,8 @@ function checkWinCondition() {
         if (parseInt(lastCard.getAttribute('data-value')) !== 13) return; // Not a King
     }
     // All foundations end with a King
+    gameOver = true;
+    updateUndoButtonText();
 
     const mostRecentGame = lastGameData();
     updateEndGameStats(mostRecentGame[0], mostRecentGame[2], mostRecentGame[1]);
@@ -506,6 +519,11 @@ function calcullateDeckRefreshCost(score, undoCount) {
 
 export function setUndoCount(value) {
     undoCount = value;
+}
+
+// True only when there is a move to undo, the player can afford it, and the game is still in progress
+export function canUndo() {
+    return moveHistory.length > 0 && score >= undoCount + 1 && !gameOver;
 }
 
 export function getRefreshCost(){

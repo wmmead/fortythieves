@@ -31,6 +31,7 @@ export function setupEventListeners() {
         const hamburgermenu = e.target.closest('#hamburgermenu');
 
         if (undoBtn) {
+            if (undoBtn.classList.contains('disabled')) return;
             handleUndoRequest();
             updateUndoButtonText();
             return;

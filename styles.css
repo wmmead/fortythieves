@@ -499,6 +499,17 @@ section {
   box-shadow: rgba(72, 35, 7, .46) 0 0 0 4px, -6px 8px 10px rgba(81,41,10,0.1), 0px 2px 2px rgba(81,41,10,0.2);
 }
 
+.action-bttn.disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.action-bttn.disabled:active {
+  background-color: transparent;
+  background-image: linear-gradient(to bottom, #fff, #f8eedb);
+  transform: none;
+}
+
 .win-container {
     height: 200px;
 }
