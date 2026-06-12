@@ -4,6 +4,7 @@ import { handleDOMAfterMove, clearSelection, deselectCards, createCardElement, p
 import { getShuffledDeck, setSelectedCard, setDeckDepleted, getNextCardFromDeck, handleMoveHistory, recordMove, recordDrawMove, handleDeckDepletion, refillDeckFromDiscard, handleScoringAndWin, undoBoardMove, undoDiscardMove, score, getCurrentScore, setScore,  getRefreshCost, getStatsDisplayFlagValue, setStatsDisplayFlag, olenMode } from './game.js';
 // Import animations
 import { animateMove, animateCardDraw } from './animation.js';
+/* global gsap */ // gsap is loaded as a global via the <script> tag in index.html
 
 /*
 ================================================================================

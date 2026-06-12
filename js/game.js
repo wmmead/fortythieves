@@ -1,5 +1,5 @@
 // Import UI update functions for card stacking, layout, and deck counter
-import { stackCards, setSectionHeights, createCardElement, blockUserInteraction, unblockUserInteraction, setDeckRefresh, setRefreshToEmpty, restoreDeck, clearBoard, updateUndoButtonText, updateDeckCounter, getContainerById, getClassElements, getLastDiscard, findCardInContainer, moveCardElement, updateCardStyle, restackCards, updateSectionHeights, showError, updateScoreDisplay, updateDeckDisplay, showWinScreen, resetMain, updateGameStatsInfo, updateEndGameStats, closeMenu } from './ui.js';
+import { stackCards, setSectionHeights, createCardElement, blockUserInteraction, unblockUserInteraction, setDeckRefresh, setRefreshToEmpty, restoreDeck, clearBoard, updateUndoButtonText, updateDeckCounter, getContainerById, getClassElements, getLastDiscard, findCardInContainer, moveCardElement, updateCardPosition, restackCards, updateSectionHeights, showError, updateScoreDisplay, updateDeckDisplay, showWinScreen, resetMain, updateGameStatsInfo, updateEndGameStats, closeMenu } from './ui.js';
 import { getCardMoveDelta, animateMove } from './animation.js';
 import { setupEventListeners } from './events.js';
 import { createNewGameRecord, updateCurrentGameStats, deleteZeroMoveRecords, getGameStatistics } from './stats.js';
@@ -19,7 +19,6 @@ MODULE-LEVEL VARIABLES & CONSTANTS
 - selectedCard: Currently selected card (or null).
 - score: Current player score.
 - undoCount: Number of undo actions taken.
-- refreshCount: Number of times the deck has been refreshed.
 - cardValues: Array of all card identifiers for two decks.
 
 INITIALIZATION & SETUP
@@ -70,7 +69,7 @@ DECK REFRESH & COST MANAGEMENT
 ------------------------------
 - calcullateDeckRefreshCost() Calculates the refresh cost based on the number of points left available
 - setUndoCount(value): Set the undo count.
-- setRefreshCount(value): Set the refresh count.
+- getRefreshCost(): Return the current cost to refresh the deck.
 
 ================================================================================
 */
@@ -90,7 +89,6 @@ export let shuffledDeck = [];
 export let selectedCard = null;
 export let score = 0;
 export let undoCount = 0;
-export let refreshCost = 0;
 // Full list of card identifiers for two standard decks (104 cards)
 const cardValues = [
     'c1', 'd1', 'h1', 's1', 
@@ -339,7 +337,7 @@ export function undoBoardMove() {
     const { deltaX, deltaY } = getCardMoveDelta(card, fromContainer);
     animateMove(card, deltaX, deltaY, () => {
         moveCardElement(card, fromContainer);
-        updateCardStyle(card, fromContainer);
+        updateCardPosition(card, fromContainer);
         restackCards();
         updateSectionHeights();
     });

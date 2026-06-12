@@ -22,7 +22,7 @@ behind the circleGraphic.png overlay, with curved text labels.
 // Maximum possible score in a game; used to scale the average-score wedge
 const TOTAL_POSSIBLE_SCORE = 728;
 
-function createWedgeSVG(angleDeg, size = 200, fill = '#666') {
+function createWedgeSVG(angleDeg, size = 200, fill = '#0a133b') {
     const cx = size / 2;
     const cy = size / 2;
     const radius = size / 2;

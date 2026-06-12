@@ -2,6 +2,7 @@ import { shuffledDeck, setSelectedCard, undoCount, isValidTableauMove, isValidFo
 import { shakeElement } from './animation.js';
 import { getGameStatistics } from './stats.js';
 import { renderStatsGraph } from './statsGraph.js';
+/* global gsap */ // gsap is loaded as a global via the <script> tag in index.html
 
 /*
 ================================================================================
@@ -25,7 +26,7 @@ SECTION: DOM UTILITIES
 SECTION: LAYOUT MANAGER
 -----------------------
 - setSectionHeights(): Dynamically set tableau section heights based on width and card count.
-- updateCardStyle(card, container): Update card style based on its container (e.g., discard pile).
+- updateCardPosition(card, container): Update card position based on its container (e.g., discard pile).
 - updateSectionHeights(): Update all tableau section heights.
 - setHeightOffset(element): Calculate a vertical offset in pixels for an element.
 - stackCards(): Visually stack cards in tableau sections with staggered offsets.
@@ -182,8 +183,7 @@ export function setSectionHeights() {
     });
 }
 
-// todo -> rename this function
-export function updateCardStyle(card, container) {
+export function updateCardPosition(card, container) {
     if (container.id === 'discard') {
         card.style.top = setHeightOffset('#discard') + 'px';
     }
