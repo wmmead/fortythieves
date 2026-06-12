@@ -505,6 +505,11 @@ export function toggleMenu() {
     }
 }
 
+export function closeMenu() {
+    const menu = document.querySelector('#menu');
+    menu.className = 'close';
+}
+
 export function olenModeDisplay(){
     if(olenMode){
         document.querySelector('#olenmode').textContent = "Olen mode";

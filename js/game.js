@@ -1,5 +1,5 @@
 // Import UI update functions for card stacking, layout, and deck counter
-import { stackCards, setSectionHeights, createCardElement, blockUserInteraction, unblockUserInteraction, setDeckRefresh, setRefreshToEmpty, restoreDeck, clearBoard, updateUndoButtonText, updateDeckCounter, getContainerById, getClassElements, getLastDiscard, findCardInContainer, moveCardElement, updateCardStyle, restackCards, updateSectionHeights, showError, updateScoreDisplay, updateDeckDisplay, showWinScreen, resetMain, updateGameStatsInfo, updateEndGameStats } from './ui.js';
+import { stackCards, setSectionHeights, createCardElement, blockUserInteraction, unblockUserInteraction, setDeckRefresh, setRefreshToEmpty, restoreDeck, clearBoard, updateUndoButtonText, updateDeckCounter, getContainerById, getClassElements, getLastDiscard, findCardInContainer, moveCardElement, updateCardStyle, restackCards, updateSectionHeights, showError, updateScoreDisplay, updateDeckDisplay, showWinScreen, resetMain, updateGameStatsInfo, updateEndGameStats, closeMenu } from './ui.js';
 import { getCardMoveDelta, animateMove } from './animation.js';
 import { setupEventListeners } from './events.js';
 import { createNewGameRecord, updateCurrentGameStats, deleteZeroMoveRecords, getGameStatistics } from './stats.js';
@@ -139,6 +139,8 @@ export function setSelectedCard(value) {
 }
 
 export async function startNewGame() {
+    // close the menu before the interaction blocker goes up, or it stays stuck open while cards deal
+    closeMenu();
     // block user interaction while deck is created
     blockUserInteraction();
     resetMain();
