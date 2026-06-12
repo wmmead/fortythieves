@@ -86,15 +86,15 @@ h1 span:last-of-type {
     align-self: end;
 }
 
-#infograph-container {
+.infograph-container {
     position: relative;
     width: 90%;
     aspect-ratio: 1/1;
     margin: 0 auto;
-    
+
 }
 
-#graphic {
+.graphic {
     position: absolute;
     top: 0;
     left: 0;
@@ -580,6 +580,29 @@ section {
 
     #statsgraph {
         display: none;
+    }
+
+    /* Win screen holds the stats graphic on small screens */
+    .win-container {
+        display: block;
+        height: auto;
+    }
+
+    #win {
+        position: static;
+        height: auto;
+        padding: 20px 0;
+    }
+
+    #win h2 {
+        text-align: center;
+        padding: 0 15px;
+    }
+
+    #win-statsgraph {
+        width: 70%;
+        max-width: 300px;
+        margin: 20px auto 0 auto;
     }
 }
 

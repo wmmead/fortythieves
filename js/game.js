@@ -151,10 +151,8 @@ export async function startNewGame() {
     const deckDiv = getContainerById('deck') || getContainerById('refresh') || getContainerById('empty');
     restoreDeck(deckDiv)
     // determine what is shown in the stats window
-    console.log(statsDisplayFlag);
     if(statsDisplayFlag){
         const mostRecentGame = lastGameData();
-        console.log(mostRecentGame);
         updateEndGameStats(mostRecentGame[0], mostRecentGame[2], mostRecentGame[1]);
     } else {
         updateGameStatsInfo();

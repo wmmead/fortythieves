@@ -1,6 +1,7 @@
 import { shuffledDeck, setSelectedCard, undoCount, isValidTableauMove, isValidFoundationMove, getRefreshCost, olenMode } from './game.js';
 import { shakeElement } from './animation.js';
 import { getGameStatistics } from './stats.js';
+import { renderStatsGraph } from './statsGraph.js';
 
 /*
 ================================================================================
@@ -144,6 +145,7 @@ export function setDeckRefresh(deckDiv){
 }
 
 export function getLastDiscard(lastMove){
+    const discard = document.getElementById('discard');
     const cards = discard.querySelectorAll(
         `.card[data-suit="${lastMove.cardId[0]}"][data-value="${lastMove.cardId.slice(1)}"]`
     );
@@ -332,7 +334,6 @@ export function updateDeckCounter() {
         const counter = document.createElement('div');
         counter.id = 'deck-counter';
         const deckCount = document.createTextNode(shuffledDeck.length);
-        console.log(deckCount);
         counter.appendChild(deckCount);
         deckDiv.appendChild(counter);
     } else {
@@ -365,46 +366,61 @@ export function setCardBackgrounds() {
     });
 }
 
+// Most recent stats rendered to the graph; used by the win screen on small viewports
+let latestStats = { averageScore: 0, winPercent: 0 };
+
+function refreshStatsGraph(gamesPlayed, averageScore, gamesWon) {
+    const winPercent = gamesPlayed > 0 ? Math.round((gamesWon / gamesPlayed) * 100) : 0;
+    latestStats = { averageScore, winPercent };
+    renderStatsGraph(document.getElementById('statsgraph'), latestStats, 'hdr-');
+}
+
 export function updateGameStatsInfo(){
     const currentGameStats = getGameStatistics();
-    //console.log('current games played: ' + currentGameStats.gamesPlayed);
     if( currentGameStats.gamesPlayed ){
         document.querySelector('#played').textContent = currentGameStats.gamesPlayed;
         document.querySelector('#average').textContent = currentGameStats.averageScore;
         document.querySelector('#wins').textContent = currentGameStats.gamesWon;
     }
+    refreshStatsGraph(currentGameStats.gamesPlayed, currentGameStats.averageScore, currentGameStats.gamesWon);
 }
 
 export function updateEndGameStats(numOfGames, numWins, average){
     document.querySelector('#played').textContent = numOfGames;
     document.querySelector('#average').textContent = average;
     document.querySelector('#wins').textContent = numWins;
-
+    refreshStatsGraph(numOfGames, average, numWins);
 }
 
 export function resetGameStatsInfo(){
     document.querySelector('#played').textContent = '0';
     document.querySelector('#average').textContent = '0';
     document.querySelector('#wins').textContent = '0';
+    refreshStatsGraph(0, 0, 0);
 }
 
 /* --------- SCREEN MANAGER ----------- */
 
 // Shows the win overlay by updating the win div's class.
 export function showWinScreen( winType ) {
-    let html;
+    let message;
     const tableau = document.querySelector('#tableau-container');
     tableau.className = 'win-container';
-    if( winType == 'clear'){
-        html = `<div id="win" class="pop">
-                <h2>Great!, you cleared cleared the board, but you didn't get all the points.</h2>
-                </div>`;
-    } else if(winType = 'win') {
-        html = `<div id="win" class="pop">
-                <h2>Congratulations! you won and scored all the possible points!</h2>
-                </div>`;
+    if( winType === 'clear'){
+        message = `Great! You cleared the board, but you didn't get all the points.`;
+    } else {
+        message = `Congratulations! You won and scored all the possible points!`;
     }
-    tableau.innerHTML = html;
+    tableau.innerHTML = `<div id="win" class="pop">
+                <h2>${message}</h2>
+                </div>`;
+    // On small screens the header stats graphic is hidden, so show it in the win screen instead
+    if (window.matchMedia('(max-width: 660px)').matches) {
+        const graphDiv = document.createElement('div');
+        graphDiv.id = 'win-statsgraph';
+        document.getElementById('win').appendChild(graphDiv);
+        renderStatsGraph(graphDiv, latestStats, 'win-');
+    }
 }
 
 export function resetMain(){
