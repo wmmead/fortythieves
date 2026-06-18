@@ -600,8 +600,8 @@ section {
     }
 
     #win {
-        position: static;
-        height: auto;
+        /* position: static; */
+        /* height: auto; */
         padding: 20px 0;
     }
 
