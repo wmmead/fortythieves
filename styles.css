@@ -303,11 +303,15 @@ h1 span:last-of-type {
 }
 
 #discard {
-    grid-row:5;
-    background-image: url(images/thief-spade.png);
-    background-size: 80%;
-    background-position: center;
-    background-repeat: no-repeat;
+    grid-row: 5;
+    grid-column: 2 / 9;
+    position: relative;
+    width: 100%;
+    place-self: center;
+    background-color: rgba(245, 245, 245, 0.5);
+    border-radius: 10px;
+    /* height is set in JS (stackDiscard) to one card tall; cards are absolutely
+       positioned inside as a staggered fan so played cards stay visible. */
 }
 
 .foundation{
@@ -332,7 +336,7 @@ h1 span:last-of-type {
     background-image: url(images/thief-diamond.png);
 }
 
-.foundation, #discard {
+.foundation {
     position: relative;
     background-color: rgba(245, 245, 245, 0.5);
     border-radius: 10px;
@@ -389,8 +393,8 @@ h1 span:last-of-type {
 }
 
 #error-container {
-    grid-row: 5;
-    grid-column: span 6;
+    grid-row: 1;
+    grid-column: 3 / 9;
     display: grid;
     place-content: center;
 }

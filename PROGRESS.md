@@ -56,6 +56,38 @@ Cleared the remaining TODO list from June 11, plus one visual change.
 
 Also in the working tree: `.card` `top: 0` → `top: 5%` in `styles.css` (Bill's manual tweak, vertically centering cards in their slots to match the existing `left: 5%`).
 
+## Session: June 18, 2026
+
+Started the **staggered discard pile** feature. Goal: instead of all discarded cards overlapping (only the top one visible), fan them out so the player can see the cards they've played. This session covers the **desktop layout only** — mobile is the next pass (see below).
+
+### Design decisions (agreed with Bill before coding)
+
+- **Positioning by DOM index, not a stored attribute.** Bill's initial idea was a `data-discard` numeric attribute on each card. We went with recomputing offsets from each card's DOM child index instead, because the discard is a strict **LIFO stack** — cards are only ever added to the end (draw, or undo-of-a-play) and only ever removed from the end (only the last card is playable; un-draw removes the last). So DOM order always equals play order, an attribute would just mirror the index, and recomputing is self-correcting. Mirrors the existing `stackCards()` pattern for the tableau.
+- **Capacity computed dynamically** from available space (not a hard-coded 30), so it stays correct at every screen width. Tuned to ~30 slots at full desktop width.
+- **Mobile:** deck stays top-left, played cards stagger *vertically* down the left edge, tableau shifts right. (Not built yet.)
+
+### Desktop implementation
+
+- `js/ui.js` — new **`stackDiscard()`**: lays out the discard pile as a staggered fan. Reads `#discard`'s children, measures a reference card size from a real tableau card (fallback: a section's width × 0.9), computes `stagger = cardSize × DISCARD_SLIVER` (`DISCARD_SLIVER = 0.25`) and `capacity` from the container length. Per card at index `i` of `T`: `slot = max(0, i − max(0, T − capacity))`, so the newest `capacity` cards fan out and any older ones pile at slot 0. Sets `left` (desktop) / `top` (mobile, ≤490px via matchMedia) and `z-index = i` so the last card paints on top and is the only exposed/playable one. Also sizes the discard zone to one card tall on desktop.
+- `js/ui.js` — `placeCardInDiscard()` now appends + calls `stackDiscard()` (was a single fixed top offset). `updateCardPosition()` calls `stackDiscard()` when a card returns to the discard (undo of a play). `handleDOMAfterMove()` clears the fan's inline sizing (`width`/`height`/`left`/`zIndex`) when a card *leaves* the discard so it resumes normal styling in its new home, then re-flows the fan.
+- `js/game.js` — imported `stackDiscard`; called after un-drawing in `undoDiscardMove()`, and after dealing in `initGame()` / `startNewGame()` so the empty zone is sized correctly.
+- `js/events.js` — resize handler also calls `stackDiscard()` so the fan re-flows / re-orients on resize.
+- `js/gameActions.js` — `checkCardPosition()` unchanged; verified that "only the last discard card is selectable" still holds (DOM order = play order).
+- `styles.css` — `#discard` is now a wide container (`grid-column: 2 / 9`, `position: relative`, translucent rounded zone), pulled out of the shared `.foundation, #discard` rule (that rule is now `.foundation` only; it kept the single-card `aspect-ratio`). Height is set in JS. `#error-container` moved from the bottom row to the **top row** (`grid-row: 1; grid-column: 3 / 9`) — it had to move because the discard now occupies the bottom-middle space where the error message used to sit. (Bill: "top row for now, I might change it later.")
+
+### Verified (desktop)
+
+`node --check` on all edited modules, plus headless Chrome at 1200×800 driving a temporary test page (deal → draw 35 cards → trigger an error). Confirmed: exactly 30 fan slots, the 6 oldest cards piled at slot 0, z-indexes ascending (last card on top), the fan rendering cleanly between deck (left) and score (right), and the error message showing in the top row. Temp page deleted after.
+
+### Known minor item (desktop)
+
+- **Undo-of-a-discard-play animation jump:** when you undo a card that was played *out of* the discard, the GSAP move animates it to the discard container's left edge, then `stackDiscard()` snaps it to its (rightmost) slot — a small visual jump. Functionally correct; final position right. Refine later by animating to the actual target slot. (Same spirit as the existing draw animation, which only does a scale bounce.)
+- **Discard zone styling:** Bill wants to refine the look of the discard pile's container/space (the translucent rounded `#discard` zone) — to be addressed later.
+
+### Next session — mobile layout
+
+The `stackDiscard()` **vertical branch is already written** and switches at ≤490px via `matchMedia`. Mobile is mainly the remaining **grid/CSS work**: put the deck at top-left, run the discard as a vertical staggered strip down the left edge spanning the foundation+tableau rows, and shift the foundations/tableau right. The existing ≤490px rules (`#deck` col 1, `#discard` col 2, etc. near the bottom of `styles.css`) will need reworking. Reference mockups are the two untracked PNGs in the project root (`fortythieves-discard-design.png`, `fortythieves-discard-design-mobile.png`) — temporary, for design reference.
+
 ## How changes were verified
 
 No build/test tooling — verified via `node --check --input-type=module < file` for syntax, plus headless Chrome against `python3 -m http.server`:
@@ -69,4 +101,6 @@ No build/test tooling — verified via `node --check --input-type=module < file`
 
 ## Remaining known issues / possible next steps
 
-- None tracked. The June 11 TODO list is fully cleared as of June 12.
+- **Staggered discard — mobile layout** (next up). Desktop done June 18; see that session for the plan. `stackDiscard()`'s vertical branch is written; remaining work is the ≤490px grid/CSS.
+- **Discard zone styling** (minor) — refine the look of the `#discard` container/space. See June 18 session.
+- **Undo-of-a-discard-play animation jump** (minor, cosmetic) — see June 18 session.

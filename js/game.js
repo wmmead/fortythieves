@@ -1,5 +1,5 @@
 // Import UI update functions for card stacking, layout, and deck counter
-import { stackCards, setSectionHeights, createCardElement, blockUserInteraction, unblockUserInteraction, setDeckRefresh, setRefreshToEmpty, restoreDeck, clearBoard, updateUndoButtonText, updateDeckCounter, getContainerById, getClassElements, getLastDiscard, findCardInContainer, moveCardElement, updateCardPosition, restackCards, updateSectionHeights, showError, updateScoreDisplay, updateDeckDisplay, showWinScreen, resetMain, updateGameStatsInfo, updateEndGameStats, closeMenu } from './ui.js';
+import { stackCards, setSectionHeights, createCardElement, blockUserInteraction, unblockUserInteraction, setDeckRefresh, setRefreshToEmpty, restoreDeck, clearBoard, updateUndoButtonText, updateDeckCounter, getContainerById, getClassElements, getLastDiscard, findCardInContainer, moveCardElement, updateCardPosition, restackCards, stackDiscard, updateSectionHeights, showError, updateScoreDisplay, updateDeckDisplay, showWinScreen, resetMain, updateGameStatsInfo, updateEndGameStats, closeMenu } from './ui.js';
 import { getCardMoveDelta, animateMove } from './animation.js';
 import { setupEventListeners } from './events.js';
 import { createNewGameRecord, updateCurrentGameStats, deleteZeroMoveRecords, getGameStatistics } from './stats.js';
@@ -126,6 +126,7 @@ export async function initGame() {
     updateUndoButtonText();
     await distributeCards(shuffledDeck);
     updateDeckDisplay();
+    stackDiscard(); // size the (empty) discard zone now that card dimensions are known
     deleteZeroMoveRecords();
     updateGameStatsInfo();
     createNewGameRecord();
@@ -173,6 +174,7 @@ export async function startNewGame() {
     // Deal new cards and reinitialize UI
     await distributeCards(shuffledDeck);
     updateDeckDisplay();
+    stackDiscard(); // re-size the (now empty) discard zone for the fresh board
     unblockUserInteraction();
     createNewGameRecord();
 }
@@ -369,6 +371,8 @@ export function undoDiscardMove() {
     // Remove card from discard and put it back on top of the deck (data only, not animated)
     discard.removeChild(card);
     shuffledDeck.unshift(lastMove.cardId); // Put card string back on top of deck
+    // Re-flow the staggered discard fan now that a card has been pulled back to the deck
+    stackDiscard();
 
     // --- Edge case fix: If the deck was empty, restore deck element and state ---
     setDeckDepleted(false);

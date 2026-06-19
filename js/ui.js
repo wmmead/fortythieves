@@ -31,6 +31,7 @@ SECTION: LAYOUT MANAGER
 - setHeightOffset(element): Calculate a vertical offset in pixels for an element.
 - stackCards(): Visually stack cards in tableau sections with staggered offsets.
 - restackCards(): Re-stack all cards in tableau sections.
+- stackDiscard(): Lay out the discard pile as a staggered fan (horizontal desktop / vertical mobile).
 - placeCardInDiscard(card): Place a card in the discard pile and set its position.
 
 SECTION: VISUAL FEEDBACK
@@ -185,7 +186,8 @@ export function setSectionHeights() {
 
 export function updateCardPosition(card, container) {
     if (container.id === 'discard') {
-        card.style.top = setHeightOffset('#discard') + 'px';
+        // Card returned to the discard pile (undo of a play). Re-flow the fan.
+        stackDiscard();
     }
 }
 
@@ -220,10 +222,66 @@ export function restackCards() {
     stackCards();
 }
 
+// Fraction of a card that stays visible per slot in the staggered discard fan.
+// ~0.25 yields room for about 30 cards across a full-width desktop layout.
+const DISCARD_SLIVER = 0.25;
+
+/**
+ * Lay out the discard pile as a staggered fan so played cards stay visible.
+ * Cards are positioned purely by their DOM index (the pile is strict LIFO, so
+ * DOM order always equals play order). When the pile exceeds the capacity that
+ * fits the available space, the oldest cards pile up at the first slot while the
+ * newest `capacity` cards fan out; the last card is always fully exposed and is
+ * the only one that paints on top (highest z-index) and is playable.
+ * Horizontal (left offset) on desktop, vertical (top offset) on mobile.
+ */
+export function stackDiscard() {
+    const discard = document.getElementById('discard');
+    if (!discard) return;
+
+    // Reference card size from a real tableau card (fallback to a section's width).
+    let cardWidth, cardHeight;
+    const sample = document.querySelector('section .card');
+    if (sample) {
+        cardWidth = sample.offsetWidth;
+        cardHeight = sample.offsetHeight;
+    } else {
+        const section = document.querySelector('section');
+        if (!section) return;
+        cardWidth = section.offsetWidth * 0.9;
+        cardHeight = cardWidth * 726 / 500;
+    }
+
+    const vertical = window.matchMedia('(max-width: 490px)').matches;
+    const cards = discard.querySelectorAll('.card');
+    const total = cards.length;
+
+    // Size the discard zone to one card tall on desktop so the row reserves space.
+    if (!vertical) discard.style.height = cardHeight + 'px';
+    if (total === 0) return;
+
+    const cardSize = vertical ? cardHeight : cardWidth;
+    const containerLength = vertical ? discard.offsetHeight : discard.offsetWidth;
+    const stagger = cardSize * DISCARD_SLIVER;
+    const travel = Math.max(0, containerLength - cardSize);
+    const capacity = Math.max(1, Math.floor(travel / stagger) + 1);
+    const overflow = Math.max(0, total - capacity);
+
+    cards.forEach((card, i) => {
+        const slot = Math.max(0, i - overflow);
+        const offset = (slot * stagger) + 'px';
+        card.style.width = cardWidth + 'px';
+        card.style.height = cardHeight + 'px';
+        card.style.left = vertical ? '0px' : offset;
+        card.style.top = vertical ? offset : '0px';
+        card.style.zIndex = i;
+    });
+}
+
 export function placeCardInDiscard(card) {
     const discard = document.getElementById('discard');
     discard.appendChild(card);
-    card.style.top = setHeightOffset('#discard') + 'px';
+    stackDiscard();
 }
 
 /* --------- VISUAL FEEDBACK ----------- */
@@ -468,7 +526,8 @@ export function unblockUserInteraction() {
 
 export function handleDOMAfterMove(card, candidate, fromContainer, targetContainer) {
     // Handle discard pile and refresh deck
-    if (fromContainer.id === 'discard') {
+    const leavingDiscard = fromContainer.id === 'discard';
+    if (leavingDiscard) {
         const discard = document.getElementById('discard');
         if (discard.childElementCount === 1) {
             const deckDiv = document.getElementById('refresh');
@@ -481,6 +540,14 @@ export function handleDOMAfterMove(card, candidate, fromContainer, targetContain
 
     targetContainer.appendChild(card);
 
+    // Clear the discard fan's inline sizing so the card resumes normal styling in its new home.
+    if (leavingDiscard) {
+        card.style.width = '';
+        card.style.height = '';
+        card.style.left = '';
+        card.style.zIndex = '';
+    }
+
     const isFoundation = targetContainer.classList.contains('foundation');
     const isDiscard = targetContainer.id === 'discard';
     if (isFoundation || isDiscard) {
@@ -490,6 +557,9 @@ export function handleDOMAfterMove(card, candidate, fromContainer, targetContain
     clearSelection();
     stackCards();
     setSectionHeights();
+    if (leavingDiscard) {
+        stackDiscard();
+    }
 
     if (candidate.classList.contains('temp')) {
         candidate.remove();

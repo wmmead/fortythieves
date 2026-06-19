@@ -9,9 +9,10 @@ import { deleteAllSolitaireUserData } from './stats.js';
 
 export function setupEventListeners() {
     window.addEventListener('resize', () => {
-        import('./ui.js').then(({ stackCards, setSectionHeights, updateCardImageDirectory }) => {
+        import('./ui.js').then(({ stackCards, setSectionHeights, updateCardImageDirectory, stackDiscard }) => {
             stackCards();
             setSectionHeights();
+            stackDiscard();
             const windowSize = window.innerWidth;
             if(windowSize < 850){
                 updateCardImageDirectory('cards', 'cards-small');
