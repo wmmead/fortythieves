@@ -88,6 +88,30 @@ Started the **staggered discard pile** feature. Goal: instead of all discarded c
 
 The `stackDiscard()` **vertical branch is already written** and switches at ≤490px via `matchMedia`. Mobile is mainly the remaining **grid/CSS work**: put the deck at top-left, run the discard as a vertical staggered strip down the left edge spanning the foundation+tableau rows, and shift the foundations/tableau right. The existing ≤490px rules (`#deck` col 1, `#discard` col 2, etc. near the bottom of `styles.css`) will need reworking. Reference mockups are the two untracked PNGs in the project root (`fortythieves-discard-design.png`, `fortythieves-discard-design-mobile.png`) — temporary, for design reference.
 
+## Session: June 23, 2026
+
+Finished the staggered discard feature (desktop polish + mobile layout), fixed the undo animation jump, and added an in-game instructions page. Committed in three parts: `c8df0fd` (discard stacking desktop + mobile), `06d6cb4` (styling fixes), `c93476d` (instructions).
+
+### Round 1 — Desktop discard background + undo jump (`c8df0fd`)
+
+- **Discard zone background now matches the tableau and grows to fit.** The translucent zone was split off `#discard` into a `#discard::before` pseudo-element so it can be sized independently. `#discard` stays full-width (so `stackDiscard()` can still measure the available space for the fan); `::before` is sized via CSS custom properties (`--fan-w` / `--fan-h`) that JS sets to hug the fan, with `transition: width/height 0.3s ease` so it animates like the tableau sections. Padding now matches the tableau exactly: cards are inset by `sectionWidth × 0.05` (the same 5% the tableau uses), and the background grows from a one-card slot (empty) outward as cards are added. Cards paint above the background (`z-index = i + 1`; `::before` at `z-index: 0`). This also resolved the **discard zone styling** item.
+- **New-game / reset-deck now shrink the fan immediately.** `startNewGame()` (after `clearBoard()`) and `refreshDeck()` (after `refillDeckFromDiscard()`) now call `stackDiscard()` right away, so the background animates down to one card instead of staying full-width through the ~8s deal. (`stackDiscard` imported into `js/gameActions.js`.)
+- **Undo-of-a-discard-play animation jump fixed (FLIP).** New `animateMoveFrom(card, fromX, fromY)` in `js/animation.js`. `undoBoardMove()` now special-cases an undo back into the discard: it places the card in its real fan slot first, measures it, then flies it in from its old spot so it lands exactly on the slot (no post-move snap). The card's slot `z-index` is preserved (bumped to 100 during flight, restored after). The generic tableau/foundation undo path is unchanged. Verified the card interpolates straight from the played position to the slot, never to the container's left edge.
+
+### Round 2 — Mobile discard layout (`c8df0fd`, refined in `06d6cb4`)
+
+- **≤490px layout.** `main` becomes a 3-zone grid: left strip (`1.3fr`) | divider column (`8px`) | 5-column play area. Deck sits at the top of the strip (next to the first foundation, `align-self: start`); discard spans the foundation+tableau rows below it; foundations and tableau shift into the play area (`grid-column: 3 / -1`). Score/error moved to the bottom of the play area.
+- **`stackDiscard()` vertical branch.** Cards stack downward, centered in the strip; the `::before` background grows vertically. A `--fan-top` offset (measured from the deck's bottom) starts the fan just below the deck so there's no gap. Card top = `fanTop + pad + slot × stagger`.
+- **Fan height cap.** The fan runs down to the bottom of `#container`, but never past the viewport bottom: `bottomLimit = min(container.bottom, innerHeight)` (added in `06d6cb4`). Because the cards are absolutely positioned they don't feed back into the container height, so no circular sizing.
+- **Divider (`06d6cb4` — simplified from the first pass).** First implemented as an absolutely-positioned element sized in JS to track the full fan; **switched to a plain grid item** (`grid-column: 2; grid-row: 2 / 4; align-self: stretch`) per Bill's preference for simplicity. Tradeoff: it's a stable border spanning the foundation+tableau rows rather than tracking the exact fan length (a long fan extends a bit past it). All the divider-positioning JS was removed.
+
+### Round 3 — In-game instructions / "How To Play" (`c93476d`)
+
+- Bill added the `<article id="instructions">` markup (already styled), a "How To Play" menu item, and `images/close.svg`.
+- **Behavior:** hidden by default (`display: none; opacity: 0`). `openInstructions()` sets `display:block`, forces a reflow, then adds `.show` (opacity fades in via transition, then a `pop-instructions` keyframe bounces it). A **dedicated** `pop-instructions` keyframe is used instead of the shared `.pop` because `.pop`'s `transform: scale()` would wipe out the popup's `translateX(-50%)` centering — `pop-instructions` keeps the translate in every step.
+- **Open/close:** "How To Play" menu item (`#howtoplay`) closes the menu and opens it; the close button (`#closeinstructions`) and the **Escape** key close it. `closeInstructions()` only acts if open.
+- **First-visit auto-open via localStorage.** `maybeAutoShowInstructions()` (called at the end of `initGame()`, after the deal) opens the popup 2s after the deal **only if** `localStorage.instructionsSeen` is unset. `closeInstructions()` sets that flag, so it never auto-opens again — it only opens from the menu thereafter.
+
 ## How changes were verified
 
 No build/test tooling — verified via `node --check --input-type=module < file` for syntax, plus headless Chrome against `python3 -m http.server`:
@@ -99,8 +123,9 @@ No build/test tooling — verified via `node --check --input-type=module < file`
 
 (12s virtual time budget lets the full 8s card-deal animation finish before the DOM dump. Add `--window-size=480,900` to exercise the ≤ 660px mobile branch, `--screenshot=out.png` for visual checks.)
 
+**Testing the ≤490px mobile branch:** headless Chrome on macOS clamps `innerWidth` to a 500px minimum, so `--window-size=460` still reports 500 and the ≤490 media query won't match. To get a true sub-490 viewport, drive the DevTools protocol directly (Node ≥21 has a global `WebSocket`): launch Chrome with `--remote-debugging-port`, create a target, and call `Emulation.setDeviceMetricsOverride { width: 460, mobile: true }` before navigating, then `Page.captureScreenshot` / `Runtime.evaluate`. (A reusable `shot.mjs` driver was used this session, in scratch — not committed.) Note the deal animation runs slower under emulation, so programmatic `drawCard()` calls timed off a fixed delay can fire before the deck is ready; trigger draws after confirming the deal finished, or inject cards directly for layout-only checks.
+
 ## Remaining known issues / possible next steps
 
-- **Staggered discard — mobile layout** (next up). Desktop done June 18; see that session for the plan. `stackDiscard()`'s vertical branch is written; remaining work is the ≤490px grid/CSS.
-- **Discard zone styling** (minor) — refine the look of the `#discard` container/space. See June 18 session.
-- **Undo-of-a-discard-play animation jump** (minor, cosmetic) — see June 18 session.
+- **Mobile divider vs. long fan** (minor, cosmetic) — the ≤490px divider is a stable grid border spanning the foundation+tableau rows; a discard fan long enough to overflow that area extends slightly past the bottom of the border. Chosen tradeoff (grid-only, no JS) over the fan-tracking absolute-positioned version. Revisit if it bothers.
+- No other tracked items. (Done June 23: mobile discard layout, discard zone styling, undo-of-a-discard-play jump.)
