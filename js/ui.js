@@ -624,6 +624,33 @@ export function closeMenu() {
     menu.className = 'close';
 }
 
+// localStorage flag recording that the player has seen the how-to-play instructions.
+const INSTRUCTIONS_SEEN_KEY = 'instructionsSeen';
+
+export function openInstructions() {
+    const el = document.getElementById('instructions');
+    if (!el) return;
+    el.style.display = 'block';
+    void el.offsetWidth; // force a reflow so the opacity transition runs from 0
+    el.classList.add('show');
+}
+
+export function closeInstructions() {
+    const el = document.getElementById('instructions');
+    if (!el || !el.classList.contains('show')) return; // ignore if not open
+    el.classList.remove('show');
+    el.style.display = 'none';
+    // Remember the player has seen the instructions so they don't auto-open again.
+    localStorage.setItem(INSTRUCTIONS_SEEN_KEY, 'true');
+}
+
+// First visit only: auto-open the instructions a couple of seconds after the deal
+// finishes. Once the player closes them (which sets the flag), this never fires again.
+export function maybeAutoShowInstructions() {
+    if (localStorage.getItem(INSTRUCTIONS_SEEN_KEY)) return;
+    setTimeout(openInstructions, 2000);
+}
+
 export function olenModeDisplay(){
     if(olenMode){
         document.querySelector('#olenmode').textContent = "Olen mode";

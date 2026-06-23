@@ -2,7 +2,7 @@ import { moveCardToCandidate, drawCard, refreshDeck, handleCardClick, handleCard
 
 import { startNewGame, selectedCard, setStatsDisplayFlag, setOlenMode } from './game.js';
 
-import { clearSelection, updateUndoButtonText, resetGameStatsInfo, updateDeckDisplay, toggleMenu, olenModeDisplay } from './ui.js';
+import { clearSelection, updateUndoButtonText, resetGameStatsInfo, updateDeckDisplay, toggleMenu, closeMenu, olenModeDisplay, openInstructions, closeInstructions } from './ui.js';
 
 import { deleteAllSolitaireUserData } from './stats.js';
 
@@ -30,7 +30,19 @@ export function setupEventListeners() {
         const undoBtn = e.target.closest('#undo');
         const resetStats = e.target.closest('#resetstats');
         const hamburgermenu = e.target.closest('#hamburgermenu');
+        const howToPlay = e.target.closest('#howtoplay');
+        const closeInstr = e.target.closest('#closeinstructions');
 
+        if (howToPlay) {
+            e.preventDefault();
+            closeMenu();
+            openInstructions();
+            return;
+        }
+        if (closeInstr) {
+            closeInstructions();
+            return;
+        }
         if (undoBtn) {
             if (undoBtn.classList.contains('disabled')) return;
             handleUndoRequest();
@@ -66,6 +78,11 @@ export function setupEventListeners() {
         } else {
             clearSelection();
         }
+    });
+
+    // Close the instructions popup on Escape
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') closeInstructions();
     });
 
     // Add double-click event for auto-move

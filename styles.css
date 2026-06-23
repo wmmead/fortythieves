@@ -118,6 +118,58 @@ h1 span:last-of-type {
   /* Add more styles as needed */
 }
 
+#instructions {
+    position: absolute;
+    z-index: 100;
+    max-width: 600px;
+    max-height: calc(100svh - 40px);
+    padding: 30px 20px 30px 30px;
+    background: url(images/background4.jpg);
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    border-radius: 20px;
+    line-height: 1.4em;
+    border: 5px solid #cac4b7;
+    /* Hidden by default; JS toggles display + the .show class (see openInstructions). */
+    display: none;
+    opacity: 0;
+    transition: opacity 0.4s ease;
+}
+
+#instructions.show {
+    opacity: 1;
+    /* Fade finishes, then the popup bounces. A dedicated keyframe is used (not the
+       shared .pop) so the translateX(-50%) centering is preserved during the scale. */
+    animation: pop-instructions 0.25s cubic-bezier(0.4, 0, 0.2, 1) 0.4s;
+}
+
+@keyframes pop-instructions {
+    0%   { transform: translateX(-50%) scale(1); }
+    60%  { transform: translateX(-50%) scale(1.05); }
+    100% { transform: translateX(-50%) scale(1); }
+}
+
+#instructions > div {
+    width: 100%;
+    padding-right: 5%;
+    height: calc(100svh - 100px);
+    overflow-y: scroll;
+}
+
+#instructions h1 {
+    font-size: 3em;
+    margin-bottom: 1em;
+    position: static;
+}
+
+#closeinstructions {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 30px;
+}
+
 /* Menu Styles */
 #menuiconbg {
     position: absolute;
@@ -164,7 +216,7 @@ h1 span:last-of-type {
 }
 
 #menu.close {
-    top: -520px;
+    top: -580px;
 }
 
 #menu ul {
@@ -590,6 +642,11 @@ section {
 
   #foundation-container, #tableau-container, main {
         gap: 5px;
+    }
+    #instructions {
+        width: 80%;
+        top: 60px;
+        max-height: calc(100svh - 80px);
     }
 }
 

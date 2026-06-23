@@ -1,5 +1,5 @@
 // Import UI update functions for card stacking, layout, and deck counter
-import { stackCards, setSectionHeights, createCardElement, blockUserInteraction, unblockUserInteraction, setDeckRefresh, setRefreshToEmpty, restoreDeck, clearBoard, updateUndoButtonText, updateDeckCounter, getContainerById, getClassElements, getLastDiscard, findCardInContainer, moveCardElement, updateCardPosition, restackCards, stackDiscard, updateSectionHeights, showError, updateScoreDisplay, updateDeckDisplay, showWinScreen, resetMain, updateGameStatsInfo, updateEndGameStats, closeMenu } from './ui.js';
+import { stackCards, setSectionHeights, createCardElement, blockUserInteraction, unblockUserInteraction, setDeckRefresh, setRefreshToEmpty, restoreDeck, clearBoard, updateUndoButtonText, updateDeckCounter, getContainerById, getClassElements, getLastDiscard, findCardInContainer, moveCardElement, updateCardPosition, restackCards, stackDiscard, updateSectionHeights, showError, updateScoreDisplay, updateDeckDisplay, showWinScreen, resetMain, updateGameStatsInfo, updateEndGameStats, closeMenu, maybeAutoShowInstructions } from './ui.js';
 import { getCardMoveDelta, animateMove, animateMoveFrom } from './animation.js';
 import { setupEventListeners } from './events.js';
 import { createNewGameRecord, updateCurrentGameStats, deleteZeroMoveRecords, getGameStatistics } from './stats.js';
@@ -131,6 +131,7 @@ export async function initGame() {
     updateGameStatsInfo();
     createNewGameRecord();
     setupEventListeners();
+    maybeAutoShowInstructions(); // first-visit only: opens 2s after the deal completes
 }
 
 export function setSelectedCard(value) {
