@@ -308,10 +308,23 @@ h1 span:last-of-type {
     position: relative;
     width: 100%;
     place-self: center;
+    /* The element stays full-width so stackDiscard() can measure the available
+       space for the fan. The visible translucent zone is the ::before, whose
+       size is set in JS to hug the staggered fan and which animates (like the
+       tableau sections' height) as cards are added or removed. Height set in JS. */
+}
+
+#discard::before {
+    content: '';
+    position: absolute;
+    top: var(--fan-top, 0);
+    left: 0;
+    width: var(--fan-w, 0);
+    height: var(--fan-h, 0);
     background-color: rgba(245, 245, 245, 0.5);
     border-radius: 10px;
-    /* height is set in JS (stackDiscard) to one card tall; cards are absolutely
-       positioned inside as a staggered fan so played cards stay visible. */
+    transition: width 0.3s ease, height 0.3s ease;
+    z-index: 0;
 }
 
 .foundation{
@@ -676,45 +689,79 @@ section {
 }
 
 @media screen and (max-width: 490px) {
+    body { padding: 0; }
 
     main {
+        /* left strip (deck + discard fan) | vertical divider | 5-col play area */
+        grid-template-columns: 1.3fr 8px repeat(5, 1fr);
+    }
+
+    h1 {
+        grid-row: 1;
+        grid-column: 3 / -1;
+    }
+
+    #foundation-container {
+        grid-row: 2;
+        grid-column: 3 / -1;
+        grid-template-columns: repeat(4, 1fr);
+    }
+
+    #tableau-container {
+        grid-row: 3;
+        grid-column: 3 / -1;
         grid-template-columns: repeat(5, 1fr);
     }
 
-    #deck{
-        grid-row: 5;
-        grid-column: 1;
+    /* The horizontal desktop divider becomes the vertical border to the right of
+       the deck/discard strip. It is positioned absolutely and sized in JS so it
+       tracks the full height of the deck + discard fan (which can overflow the
+       grid); an in-grid element sized that tall would inflate the rows. */
+    #divider {
+        position: absolute;
+        grid-area: auto; /* clear the base grid-row:4 so main's padding box is the
+                            containing block (a definite grid area would offset it) */
+        width: 8px;
+        height: 15px; /* top/left/height set in JS (stackDiscard) */
     }
-    #discard{
-        grid-row: 5;
-        grid-column: 2;
+
+    #deck {
+        grid-row: 2;
+        grid-column: 1;
+        align-self: start; /* sit at the top of the strip, beside the first foundation */
+    }
+
+    /* Discard becomes a vertical fan down the left strip. It spans the foundation
+       and tableau rows; JS offsets the fan (--fan-top) to begin just below the
+       deck and caps its height at the viewport, overflowing the cell downward. */
+    #discard {
+        grid-row: 2 / 4;
+        grid-column: 1;
+        width: 100%;
+        height: auto;
+        align-self: start;
+    }
+
+    /* Center the fan's translucent background horizontally in the strip. */
+    #discard::before {
+        left: 50%;
+        transform: translateX(-50%);
     }
 
     #score-container {
-        grid-column: 3 / span 3;
-        margin-top: 30px;
+        grid-row: 4;
+        grid-column: 3 / -1;
+        margin-top: 10px;
     }
 
     #score-container img {
         width: 60%;
     }
 
-    #foundation-container {
-        grid-row: 2;
-        grid-column: span 4;
-        grid-template-columns: repeat(4, 1fr);
-    }
-
-    #tableau-container {
-        grid-row: 3;
-        grid-column: span 5;
-        grid-template-columns: 1fr 1fr 1fr 1fr 1fr;
-    }
-
     #error-container {
-    grid-row: 6;
-    grid-column: span 5;
-    display: grid;
-    place-content: center;
+        grid-row: 5;
+        grid-column: 3 / -1;
+        display: grid;
+        place-content: center;
     }
 }

@@ -1,6 +1,6 @@
 // Import UI update functions for card stacking, layout, and deck counter
 import { stackCards, setSectionHeights, createCardElement, blockUserInteraction, unblockUserInteraction, setDeckRefresh, setRefreshToEmpty, restoreDeck, clearBoard, updateUndoButtonText, updateDeckCounter, getContainerById, getClassElements, getLastDiscard, findCardInContainer, moveCardElement, updateCardPosition, restackCards, stackDiscard, updateSectionHeights, showError, updateScoreDisplay, updateDeckDisplay, showWinScreen, resetMain, updateGameStatsInfo, updateEndGameStats, closeMenu } from './ui.js';
-import { getCardMoveDelta, animateMove } from './animation.js';
+import { getCardMoveDelta, animateMove, animateMoveFrom } from './animation.js';
 import { setupEventListeners } from './events.js';
 import { createNewGameRecord, updateCurrentGameStats, deleteZeroMoveRecords, getGameStatistics } from './stats.js';
 
@@ -145,6 +145,9 @@ export async function startNewGame() {
     resetMain();
     // Clear all tableau sections, foundations, and discard pile
     clearBoard();
+    // Shrink the discard background to the empty (one-card) size right away, so it
+    // animates down immediately instead of staying full-width through the deal.
+    stackDiscard();
     // Create a completely new shuffled deck from the original cardValues
     const newDeck = shuffleDeck(cardValues);
     shuffledDeck.length = 0;
@@ -334,6 +337,19 @@ export function undoBoardMove() {
 
     if (toContainer.classList.contains('foundation')) {
         deductFoundationScore(card);
+    }
+
+    if (fromContainer.id === 'discard') {
+        // Undo back into the discard fan: place the card in its real slot first,
+        // then fly it in from its old spot so it lands exactly there (no snap).
+        const firstRect = card.getBoundingClientRect();
+        moveCardElement(card, fromContainer);
+        updateCardPosition(card, fromContainer); // appends + stackDiscard -> final slot
+        restackCards();
+        updateSectionHeights();
+        const lastRect = card.getBoundingClientRect();
+        animateMoveFrom(card, firstRect.left - lastRect.left, firstRect.top - lastRect.top);
+        return;
     }
 
     const { deltaX, deltaY } = getCardMoveDelta(card, fromContainer);

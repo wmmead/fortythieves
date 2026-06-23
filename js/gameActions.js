@@ -1,5 +1,5 @@
 // Import UI utilities for positioning, stacking, layout, and deck counter updates
-import { handleDOMAfterMove, clearSelection, deselectCards, createCardElement, placeCardInDiscard, highlightTableauTargets, highlightFoundationTargets, createTempCandidate, updateDeckDisplay, updateScoreDisplay, restoreDeck, handleEmptyDeckAndDiscard, getContainerById, getClassElements, showError } from './ui.js';
+import { handleDOMAfterMove, clearSelection, deselectCards, createCardElement, placeCardInDiscard, highlightTableauTargets, highlightFoundationTargets, createTempCandidate, updateDeckDisplay, updateScoreDisplay, restoreDeck, handleEmptyDeckAndDiscard, getContainerById, getClassElements, showError, stackDiscard } from './ui.js';
 // Import the current shuffled deck from game state
 import { getShuffledDeck, setSelectedCard, setDeckDepleted, getNextCardFromDeck, handleMoveHistory, recordMove, recordDrawMove, handleDeckDepletion, refillDeckFromDiscard, handleScoringAndWin, undoBoardMove, undoDiscardMove, score, getCurrentScore, setScore,  getRefreshCost, getStatsDisplayFlagValue, setStatsDisplayFlag, olenMode } from './game.js';
 // Import animations
@@ -243,6 +243,9 @@ export function refreshDeck() {
         const discard = getContainerById('discard');
         const theShuffledDeck = getShuffledDeck();
         refillDeckFromDiscard(discard, theShuffledDeck);
+        // Shrink the discard background back to the empty (one-card) size now that
+        // the fan has been emptied, so it animates down immediately.
+        stackDiscard();
         const refresh = getContainerById('refresh');
         restoreDeck(refresh);
         setDeckAsNotDepleted();

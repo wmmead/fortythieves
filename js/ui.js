@@ -242,40 +242,94 @@ export function stackDiscard() {
     // Reference card size from a real tableau card (fallback to a section's width).
     let cardWidth, cardHeight;
     const sample = document.querySelector('section .card');
+    const sampleSection = document.querySelector('#tableau-container section');
     if (sample) {
         cardWidth = sample.offsetWidth;
         cardHeight = sample.offsetHeight;
     } else {
-        const section = document.querySelector('section');
-        if (!section) return;
-        cardWidth = section.offsetWidth * 0.9;
+        if (!sampleSection) return;
+        cardWidth = sampleSection.offsetWidth * 0.9;
         cardHeight = cardWidth * 726 / 500;
     }
+
+    // Match the tableau's inset: cards in a section sit at top/left 5% of the
+    // section width, so the discard zone pads its fan by the same pixel amount.
+    const pad = (sampleSection ? sampleSection.offsetWidth : cardWidth / 0.9) * 0.05;
 
     const vertical = window.matchMedia('(max-width: 490px)').matches;
     const cards = discard.querySelectorAll('.card');
     const total = cards.length;
 
-    // Size the discard zone to one card tall on desktop so the row reserves space.
-    if (!vertical) discard.style.height = cardHeight + 'px';
-    if (total === 0) return;
-
     const cardSize = vertical ? cardHeight : cardWidth;
-    const containerLength = vertical ? discard.offsetHeight : discard.offsetWidth;
+    // Vertical (mobile): the fan starts just below the deck (which shares the strip)
+    // and is capped at the viewport height. Horizontal (desktop) spans the element.
+    let containerLength, fanTop = 0;
+    if (vertical) {
+        const discardTop = discard.getBoundingClientRect().top;
+        const deckEl = document.getElementById('deck')
+            || document.getElementById('refresh')
+            || document.getElementById('empty');
+        if (deckEl) {
+            fanTop = Math.max(0, deckEl.getBoundingClientRect().bottom - discardTop + pad);
+        }
+        containerLength = window.innerHeight - discardTop - fanTop;
+    } else {
+        containerLength = discard.offsetWidth;
+    }
     const stagger = cardSize * DISCARD_SLIVER;
-    const travel = Math.max(0, containerLength - cardSize);
+    // Leave room for padding on both ends so the fan never touches the edges.
+    const travel = Math.max(0, containerLength - cardSize - 2 * pad);
     const capacity = Math.max(1, Math.floor(travel / stagger) + 1);
     const overflow = Math.max(0, total - capacity);
 
+    // Cross-axis inset: center the vertical fan in the strip; pad-align horizontally.
+    const crossInset = vertical
+        ? Math.max(pad, (discard.offsetWidth - cardWidth) / 2)
+        : pad;
+
     cards.forEach((card, i) => {
         const slot = Math.max(0, i - overflow);
-        const offset = (slot * stagger) + 'px';
+        const offset = (pad + slot * stagger) + 'px';
         card.style.width = cardWidth + 'px';
         card.style.height = cardHeight + 'px';
-        card.style.left = vertical ? '0px' : offset;
-        card.style.top = vertical ? offset : '0px';
-        card.style.zIndex = i;
+        card.style.left = vertical ? crossInset + 'px' : offset;
+        card.style.top = vertical ? (fanTop + pad + slot * stagger) + 'px' : pad + 'px';
+        card.style.zIndex = i + 1; // above the ::before background (z-index 0)
     });
+
+    // Grow the translucent background (::before) to hug the fan plus padding on
+    // every side. An empty pile still shows a single card-sized slot. The CSS
+    // transition animates the size change, mirroring the tableau sections.
+    const lastSlot = total > 0 ? Math.max(0, total - 1 - overflow) : 0;
+    const fanLength = lastSlot * stagger + cardSize;
+    const divider = document.getElementById('divider');
+    if (vertical) {
+        discard.style.height = ''; // let the grid control height; fan overflows below
+        discard.style.setProperty('--fan-top', fanTop + 'px');
+        discard.style.setProperty('--fan-w', cardWidth + 2 * pad + 'px');
+        discard.style.setProperty('--fan-h', fanLength + 2 * pad + 'px');
+        // Stretch the (absolutely-positioned) divider to span the deck + fan column.
+        if (divider) {
+            const main = discard.closest('main') || discard.parentElement;
+            const mRect = main.getBoundingClientRect();
+            const dRect = discard.getBoundingClientRect();
+            divider.style.left = dRect.right - mRect.left + 'px';
+            divider.style.top = dRect.top - mRect.top + 'px';
+            divider.style.height = fanTop + fanLength + 2 * pad + 'px';
+        }
+    } else {
+        discard.style.setProperty('--fan-top', '0px');
+        discard.style.setProperty('--fan-w', fanLength + 2 * pad + 'px');
+        discard.style.setProperty('--fan-h', cardHeight + 2 * pad + 'px');
+        // Reserve the grid row: one card tall plus padding on top and bottom.
+        discard.style.height = cardHeight + 2 * pad + 'px';
+        // Drop any mobile inline positioning so the divider resumes its grid role.
+        if (divider) {
+            divider.style.left = '';
+            divider.style.top = '';
+            divider.style.height = '';
+        }
+    }
 }
 
 export function placeCardInDiscard(card) {
@@ -545,6 +599,7 @@ export function handleDOMAfterMove(card, candidate, fromContainer, targetContain
         card.style.width = '';
         card.style.height = '';
         card.style.left = '';
+        card.style.top = '';
         card.style.zIndex = '';
     }
 

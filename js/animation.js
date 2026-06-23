@@ -49,6 +49,40 @@ export function animateCardMove(card, deltaX, deltaY, onComplete) {
 }
 
 /**
+ * Animates a card from an offset back to its current (already-final) position.
+ * The card is expected to already sit in its destination slot; pass the offset
+ * from where it should appear to start. Used for undo-into-the-discard, where the
+ * card is placed in its real fan slot first and then flown in from its old spot,
+ * so it lands exactly on the slot with no post-move snap.
+ * @param {HTMLElement} card - The card to animate.
+ * @param {number} fromX - The X offset of the starting position from the final.
+ * @param {number} fromY - The Y offset of the starting position from the final.
+ * @param {Function} onComplete - Callback after the animation completes.
+ */
+export function animateMoveFrom(card, fromX, fromY, onComplete) {
+    const finalZ = card.style.zIndex; // slot z-index already set by stackDiscard
+    gsap.fromTo(
+        card,
+        { x: fromX, y: fromY, scale: 1 },
+        {
+            x: 0,
+            y: 0,
+            scale: 1,
+            duration: 0.3,
+            ease: "power1.out",
+            onStart: () => {
+                card.style.zIndex = "100"; // float above the board during flight
+            },
+            onComplete: () => {
+                gsap.set(card, { x: 0, y: 0, scale: 1 });
+                card.style.zIndex = finalZ; // restore the fan slot's stacking order
+                if (onComplete) onComplete();
+            }
+        }
+    );
+}
+
+/**
  * Animates a card being placed on the discard pile:
  * Scales up by 5%, then back to normal over 200ms total.
  * @param {HTMLElement} card - The card element to animate.
