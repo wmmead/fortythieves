@@ -467,7 +467,7 @@ section {
     box-shadow: 0px 0px 15px 0px #591DFF;
 }
 .candidate {
-   box-shadow: 0px 0px 10px 2px #3F9A0A;
+   box-shadow: 0px 0px 10px 2px #cd1dbe;
 }
 
 #button-container{
@@ -691,14 +691,22 @@ section {
 @media screen and (max-width: 490px) {
     body { padding: 0; }
 
+    #container {
+        background-color: transparent;
+        border: none;
+    }
+
     main {
         /* left strip (deck + discard fan) | vertical divider | 5-col play area */
-        grid-template-columns: 1.3fr 8px repeat(5, 1fr);
+        grid-template-columns: 1fr 8px repeat(5, 1fr);
     }
 
     h1 {
         grid-row: 1;
-        grid-column: 3 / -1;
+        grid-column: 3;
+        margin-bottom: 20%;
+        position: relative;
+        left: 15%;
     }
 
     #foundation-container {
@@ -714,15 +722,13 @@ section {
     }
 
     /* The horizontal desktop divider becomes the vertical border to the right of
-       the deck/discard strip. It is positioned absolutely and sized in JS so it
-       tracks the full height of the deck + discard fan (which can overflow the
-       grid); an in-grid element sized that tall would inflate the rows. */
+       the deck/discard strip, spanning the foundation + tableau rows. */
     #divider {
-        position: absolute;
-        grid-area: auto; /* clear the base grid-row:4 so main's padding box is the
-                            containing block (a definite grid area would offset it) */
-        width: 8px;
-        height: 15px; /* top/left/height set in JS (stackDiscard) */
+        grid-row: 2 / 4;
+        grid-column: 2;
+        align-self: stretch;
+        width: 100%;
+        height: auto;
     }
 
     #deck {
@@ -746,16 +752,17 @@ section {
     #discard::before {
         left: 50%;
         transform: translateX(-50%);
+         border-radius: 5px;
     }
 
     #score-container {
         grid-row: 4;
-        grid-column: 3 / -1;
+        grid-column: 7;
         margin-top: 10px;
     }
 
     #score-container img {
-        width: 60%;
+        width: 190%;
     }
 
     #error-container {

@@ -262,7 +262,8 @@ export function stackDiscard() {
 
     const cardSize = vertical ? cardHeight : cardWidth;
     // Vertical (mobile): the fan starts just below the deck (which shares the strip)
-    // and is capped at the viewport height. Horizontal (desktop) spans the element.
+    // and runs down to the bottom of the #container, but never past the viewport
+    // bottom. Horizontal (desktop) spans the element's width.
     let containerLength, fanTop = 0;
     if (vertical) {
         const discardTop = discard.getBoundingClientRect().top;
@@ -272,7 +273,11 @@ export function stackDiscard() {
         if (deckEl) {
             fanTop = Math.max(0, deckEl.getBoundingClientRect().bottom - discardTop + pad);
         }
-        containerLength = window.innerHeight - discardTop - fanTop;
+        const container = document.getElementById('container');
+        const bottomLimit = container
+            ? Math.min(container.getBoundingClientRect().bottom, window.innerHeight)
+            : window.innerHeight;
+        containerLength = bottomLimit - discardTop - fanTop;
     } else {
         containerLength = discard.offsetWidth;
     }
@@ -302,33 +307,17 @@ export function stackDiscard() {
     // transition animates the size change, mirroring the tableau sections.
     const lastSlot = total > 0 ? Math.max(0, total - 1 - overflow) : 0;
     const fanLength = lastSlot * stagger + cardSize;
-    const divider = document.getElementById('divider');
     if (vertical) {
         discard.style.height = ''; // let the grid control height; fan overflows below
         discard.style.setProperty('--fan-top', fanTop + 'px');
         discard.style.setProperty('--fan-w', cardWidth + 2 * pad + 'px');
         discard.style.setProperty('--fan-h', fanLength + 2 * pad + 'px');
-        // Stretch the (absolutely-positioned) divider to span the deck + fan column.
-        if (divider) {
-            const main = discard.closest('main') || discard.parentElement;
-            const mRect = main.getBoundingClientRect();
-            const dRect = discard.getBoundingClientRect();
-            divider.style.left = dRect.right - mRect.left + 'px';
-            divider.style.top = dRect.top - mRect.top + 'px';
-            divider.style.height = fanTop + fanLength + 2 * pad + 'px';
-        }
     } else {
         discard.style.setProperty('--fan-top', '0px');
         discard.style.setProperty('--fan-w', fanLength + 2 * pad + 'px');
         discard.style.setProperty('--fan-h', cardHeight + 2 * pad + 'px');
         // Reserve the grid row: one card tall plus padding on top and bottom.
         discard.style.height = cardHeight + 2 * pad + 'px';
-        // Drop any mobile inline positioning so the divider resumes its grid role.
-        if (divider) {
-            divider.style.left = '';
-            divider.style.top = '';
-            divider.style.height = '';
-        }
     }
 }
 
