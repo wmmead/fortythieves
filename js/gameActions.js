@@ -1,9 +1,9 @@
 // Import UI utilities for positioning, stacking, layout, and deck counter updates
-import { handleDOMAfterMove, clearSelection, deselectCards, createCardElement, placeCardInDiscard, highlightTableauTargets, highlightFoundationTargets, createTempCandidate, updateDeckDisplay, updateScoreDisplay, restoreDeck, handleEmptyDeckAndDiscard, getContainerById, getClassElements, showError, stackDiscard } from './ui.js';
+import { handleDOMAfterMove, clearSelection, deselectCards, createCardElement, placeCardInDiscard, highlightTableauTargets, highlightFoundationTargets, createTempCandidate, updateDeckCounter, updateScoreDisplay, restoreDeck, handleEmptyDeckAndDiscard, getContainerById, getClassElements, showError, stackDiscard } from './ui.js';
 // Import the current shuffled deck from game state
-import { getShuffledDeck, setSelectedCard, setDeckDepleted, getNextCardFromDeck, handleMoveHistory, recordMove, recordDrawMove, handleDeckDepletion, refillDeckFromDiscard, handleScoringAndWin, undoBoardMove, undoDiscardMove, score, getCurrentScore, setScore,  getRefreshCost, getStatsDisplayFlagValue, setStatsDisplayFlag, olenMode } from './game.js';
+import { getShuffledDeck, setSelectedCard, setDeckDepleted, getNextCardFromDeck, handleMoveHistory, recordMove, recordDrawMove, handleDeckDepletion, refillDeckFromDiscard, handleScoringAndWin, undoBoardMove, undoDiscardMove, score, getCurrentScore, setScore,  getRefreshCost, setStatsDisplayFlag, olenMode } from './game.js';
 // Import animations
-import { animateMove, animateCardDraw } from './animation.js';
+import { animateCardMove, animateDiscardCard } from './animation.js';
 /* global gsap */ // gsap is loaded as a global via the <script> tag in index.html
 
 /*
@@ -45,11 +45,6 @@ MOVE VALIDATION HELPERS
 - getCardValue(card): Gets the numeric value of a card element.
 - isFoundationAccepting(card, foundation): Returns true if the foundation can accept the card.
 - isTableauAccepting(card, targetCard): Returns true if the tableau target can accept the card.
-
-DECK STATE & UI HELPERS
------------------------
-- setDeckAsNotDepleted(): Sets the deck as not depleted (resets state).
-- updateDeckUI(): Updates the deck UI display.
 
 ================================================================================
 */
@@ -127,7 +122,7 @@ export function moveCardToCandidate(candidate, card) {
     const deltaX = candidateRect.left - selectedRect.left;
     const deltaY = candidateRect.top - selectedRect.top;
 
-    animateMove(card, deltaX, deltaY, () => {
+    animateCardMove(card, deltaX, deltaY, () => {
         handleDOMAfterMove(card, candidate, fromContainer, targetContainer);
         handleScoringAndWin(card, fromContainer, targetContainer);
         recordMove(card, fromContainer, targetContainer);
@@ -135,10 +130,7 @@ export function moveCardToCandidate(candidate, card) {
 }
 
 function moveCardToTarget(target, card) {
-    const statsStateFalse = getStatsDisplayFlagValue();
-    if( statsStateFalse == false ){
-        setStatsDisplayFlag(true);
-    }
+    setStatsDisplayFlag(true);
     moveCardToCandidate(target, card);
 }
 
@@ -222,8 +214,8 @@ export function drawCard() {
     const card = createCardElement(suit, value);
     placeCardInDiscard(card);
     recordDrawMove(suit + value);
-    animateCardDraw(card);
-    updateDeckDisplay();
+    animateDiscardCard(card);
+    updateDeckCounter();
     const theShuffledDeck = getShuffledDeck();
     if (theShuffledDeck.length === 0) {
         const discard = getContainerById('discard');
@@ -248,11 +240,11 @@ export function refreshDeck() {
         stackDiscard();
         const refresh = getContainerById('refresh');
         restoreDeck(refresh);
-        setDeckAsNotDepleted();
+        setDeckDepleted(false);
         handleEmptyDeckAndDiscard(theShuffledDeck, discard);
         updateScoreDisplay(newScore);
-        updateDeckUI();
-        
+        updateDeckCounter();
+
     } else {
         const message = `You need at least ${cost} points to refresh the deck.`;
         showError(message);
@@ -283,15 +275,4 @@ function isFoundationAccepting(card, foundation) {
 
 function isTableauAccepting(card, targetCard) {
     return getCardSuit(card) === getCardSuit(targetCard) && getCardValue(card) === getCardValue(targetCard) - 1;
-}
-
-/* ============================================================================
-   DECK STATE & UI HELPERS
-============================================================================ */
-function setDeckAsNotDepleted() {
-    setDeckDepleted(false);
-}
-
-function updateDeckUI() {
-    updateDeckDisplay();
 }

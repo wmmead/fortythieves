@@ -1,13 +1,5 @@
 // animation.js
 /* global gsap */ // gsap is loaded as a global via the <script> tag in index.html
-export function animateMove(card, deltaX, deltaY, callback) {
-    animateCardMove(card, deltaX, deltaY, callback);
-}
-
-export function animateCardDraw(card) {
-    animateDiscardCard(card);
-}
-
 export function shakeElement(element) {
   gsap.to(element, {
     x: 10,

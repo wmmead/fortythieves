@@ -21,16 +21,13 @@ SECTION: DOM UTILITIES
 - handleEmptyDeckAndDiscard(deckArray, discard): Update deck display if both deck and discard are empty.
 - setRefreshToEmpty(): Set the refresh deck area to an empty state.
 - setDeckRefresh(deckDiv): Set the deck as refreshable and update its cost.
-- getLastDiscard(lastMove): Find cards in the discard pile matching the last move.
 
 SECTION: LAYOUT MANAGER
 -----------------------
 - setSectionHeights(): Dynamically set tableau section heights based on width and card count.
 - updateCardPosition(card, container): Update card position based on its container (e.g., discard pile).
-- updateSectionHeights(): Update all tableau section heights.
 - setHeightOffset(element): Calculate a vertical offset in pixels for an element.
 - stackCards(): Visually stack cards in tableau sections with staggered offsets.
-- restackCards(): Re-stack all cards in tableau sections.
 - stackDiscard(): Lay out the discard pile as a staggered fan (horizontal desktop / vertical mobile).
 - placeCardInDiscard(card): Place a card in the discard pile and set its position.
 
@@ -38,7 +35,6 @@ SECTION: VISUAL FEEDBACK
 ------------------------
 - clearSelection(): Deselect all selected/candidate cards and remove highlights.
 - deselectCards(): Remove selection and candidate classes from cards.
-- highlightEmptySection(section): Add a temporary candidate card to an empty section.
 - highlightCandidateCard(card): Mark a card as a candidate for a move.
 - highlightTableauTargets(card, sourceElement): Highlight valid tableau targets for a card.
 - highlightFoundationTargets(card, foundations): Highlight valid foundation targets for a card.
@@ -50,10 +46,8 @@ SECTION: VISUAL FEEDBACK
 SECTION: GAME DISPLAY
 ---------------------
 - updateDeckCounter(): Show or update the deck's remaining card counter.
-- updateDeckDisplay(): Update the deck counter display.
 - updateUndoButtonText(): Update the undo button text to reflect the next cost.
 - updateScoreDisplay(score): Update the displayed score.
-- setCardBackgrounds(): Set background images for all cards based on their suit and value.
 - updateGameStatsInfo(): Sets the DOM so show the current stats
 - updateEndGameStats(): Sets the stats window at the end of the game to show stats + current game.
 - resetGameStatsInfo(): resets the stats in the DOM screen
@@ -146,14 +140,6 @@ export function setDeckRefresh(deckDiv){
     deckDiv.innerHTML = `<span>reset<br>(${cost} pts)</span>`;
 }
 
-export function getLastDiscard(lastMove){
-    const discard = document.getElementById('discard');
-    const cards = discard.querySelectorAll(
-        `.card[data-suit="${lastMove.cardId[0]}"][data-value="${lastMove.cardId.slice(1)}"]`
-    );
-    return cards;
-}
-
 export function updateCardImageDirectory(oldDir, newDir) {
   // Select all card elements
   const cards = document.querySelectorAll('.card');
@@ -174,13 +160,18 @@ export function updateCardImageDirectory(oldDir, newDir) {
 
 // Dynamically set the height of each tableau section based on its width and number of cards
 export function setSectionHeights() {
-    document.querySelectorAll('section').forEach(section => {
+    // Batch all layout reads before any writes so the browser only reflows once
+    const sections = document.querySelectorAll('section');
+    const heights = [];
+    sections.forEach(section => {
         const sectionWidth = section.offsetWidth;
-        const cards = section.querySelectorAll('.card:not(.temp)');
-        const numCards = cards.length;
+        const numCards = section.querySelectorAll('.card:not(.temp)').length;
         let height = sectionWidth * 1.452; // Base height for one card
         height += numCards * (sectionWidth * 0.3); // Add extra height for stacked cards
-        section.style.height = `${height}px`;
+        heights.push(height);
+    });
+    sections.forEach((section, i) => {
+        section.style.height = `${heights[i]}px`;
     });
 }
 
@@ -189,10 +180,6 @@ export function updateCardPosition(card, container) {
         // Card returned to the discard pile (undo of a play). Re-flow the fan.
         stackDiscard();
     }
-}
-
-export function updateSectionHeights() {
-    setSectionHeights();
 }
 
 // Calculate a vertical offset (in pixels) based on the width of a given element
@@ -210,16 +197,14 @@ export function stackCards() {
     if (!cardEl) return;
     const cardHeight = cardEl.offsetHeight;
     const staggerCards = cardHeight / 4;
+    // Same for every card, so compute it once instead of per card (it forces a layout read)
+    const heightOffset = setHeightOffset('#tableau-container section');
     stacks.forEach(stack => {
         const cards = stack.querySelectorAll('.card:not(.temp)');
         cards.forEach((card, i) => {
-            card.style.top = `${(i * staggerCards) + setHeightOffset('#tableau-container section')}px`;
+            card.style.top = `${(i * staggerCards) + heightOffset}px`;
         });
     });
-}
-
-export function restackCards() {
-    stackCards();
 }
 
 // Fraction of a card that stays visible per slot in the staggered discard fan.
@@ -351,12 +336,6 @@ export function deselectCards() {
     });
 }
 
-export function highlightEmptySection(section) {
-    const tempCard = document.createElement('div');
-    tempCard.className = 'card candidate temp';
-    section.appendChild(tempCard);
-}
-
 export function highlightCandidateCard(card) {
     card.classList.add('candidate');
 }
@@ -367,7 +346,7 @@ export function highlightTableauTargets(card, sourceElement) {
         if (section === sourceElement) return;
         const cards = section.querySelectorAll('.card:not(.temp)');
         if (cards.length === 0) {
-            highlightEmptySection(section);
+            createTempCandidate(section);
         } else {
             const lastCard = cards[cards.length - 1];
             if (isValidTableauMove(card, lastCard)) {
@@ -383,7 +362,7 @@ export function highlightFoundationTargets(card, foundations) {
         const cards = foundation.querySelectorAll('.card:not(.temp)');
         if (cards.length === 0) {
             if (value === 1) {
-                highlightEmptySection(foundation);
+                createTempCandidate(foundation);
             }
         } else {
             const lastCard = cards[cards.length - 1];
@@ -442,10 +421,6 @@ export function updateDeckCounter() {
     }
 }
 
-export function updateDeckDisplay() {
-    updateDeckCounter();
-}
-
 export function updateUndoButtonText() {
     const undoBtn = document.getElementById('undo');
     if (undoBtn) {
@@ -456,16 +431,6 @@ export function updateUndoButtonText() {
 }
 export function updateScoreDisplay(score) {
     document.getElementById('score').textContent = score;
-}
-
-// Set the background image for each card based on its suit and value
-export function setCardBackgrounds() {
-    document.querySelectorAll('.card:not(.temp)').forEach(card => {
-        const suit = card.getAttribute('data-suit');
-        const value = card.getAttribute('data-value');
-        const imgPath = `cards/${suit}${value}.png`;
-        card.style.backgroundImage = `url('${imgPath}')`;
-    });
 }
 
 // Most recent stats rendered to the graph; used by the win screen on small viewports
@@ -639,7 +604,10 @@ export function closeInstructions() {
     const el = document.getElementById('instructions');
     if (!el || !el.classList.contains('show')) return; // ignore if not open
     el.classList.remove('show');
-    el.style.display = 'none';
+    // Let the opacity fade-out play before hiding; skip the hide if it was reopened mid-fade.
+    el.addEventListener('transitionend', () => {
+        if (!el.classList.contains('show')) el.style.display = 'none';
+    }, { once: true });
     // Remember the player has seen the instructions so they don't auto-open again.
     localStorage.setItem(INSTRUCTIONS_SEEN_KEY, 'true');
 }

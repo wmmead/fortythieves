@@ -112,6 +112,38 @@ Finished the staggered discard feature (desktop polish + mobile layout), fixed t
 - **Open/close:** "How To Play" menu item (`#howtoplay`) closes the menu and opens it; the close button (`#closeinstructions`) and the **Escape** key close it. `closeInstructions()` only acts if open.
 - **First-visit auto-open via localStorage.** `maybeAutoShowInstructions()` (called at the end of `initGame()`, after the deal) opens the popup 2s after the deal **only if** `localStorage.instructionsSeen` is unset. `closeInstructions()` sets that flag, so it never auto-opens again — it only opens from the menu thereafter.
 
+## Session: July 1, 2026
+
+Code-review pass over all the June 2026 work; applied every finding except optimizing `images/circleGraphic.png` (258 KB — Bill is handling that himself). No new features.
+
+### Bug fixes
+
+- **Instructions text (`index.html`):** `&rsaquo;` (renders `›`) corrected to `&rsquo;` in three places (it's / game's / wasn't), plus typos: "a placed" → "are placed", "on card" → "one card", "empty file," → "empty pile", "an go" → "and go".
+- **Undo no longer charges for a failed undo.** `undoBoardMove()` now peeks the move and validates containers + card *before* paying the cost and popping history. Previously a lookup failure ate the point and dropped the move silently; now it warns and leaves state untouched.
+
+### Performance
+
+- `stackCards()` computes `setHeightOffset()` once instead of per card (was a `querySelector` + forced layout read for every one of ~40 cards, on every restack and 40× during the deal).
+- `setSectionHeights()` batches all `offsetWidth` reads before any `style.height` writes (was interleaving them, forcing a reflow per section).
+- The window `resize` handler is debounced (100ms) and uses static imports — the per-event `import('./ui.js')` was unnecessary since `events.js` already imports `ui.js` statically.
+
+### Simplification / dead code
+
+- `statsGraph.js`: `createWedgeSVG` and `createWedgeSVG_CCW` merged into one function with a `{ clockwise, size, fill }` options object.
+- `lastGameData()` returns `{ gamesPlayed, averageScore, gamesWon }` instead of a positional array that both call sites consumed out of order.
+- Deleted dead/duplicate code: `setCardBackgrounds()` (never called; hardcoded the large `cards/` dir), `getLastDiscard()` + its hand-rolled loop in `undoDiscardMove()` (replaced with the existing `findCardInContainer()`), `highlightEmptySection()` (duplicate of `createTempCandidate()`), and the one-line aliases `restackCards`, `updateSectionHeights`, `updateDeckDisplay`, `payUndoCost`, `popLastMove`, `setDeckAsNotDepleted`, `updateDeckUI`, `animateMove`, `animateCardDraw` (call sites now use the real functions).
+- `moveCardToTarget()` sets the stats flag unconditionally; `getStatsDisplayFlagValue()` returns the flag directly; the Olen-mode prompt handler is `setOlenMode(mode === 'true')`.
+
+### Polish
+
+- `preventDefault()` on the undo and new-game `<a href="#">` handlers (no more scroll-to-top); `hamburgermenu`/`resetStats` click branches now `return` like the others.
+- `closeInstructions()` lets the 0.4s opacity fade-out finish (hides on `transitionend`, guarded against reopen mid-fade) instead of snapping to `display: none`.
+- `#instructions > div` uses `overflow-y: auto` (no permanent scrollbar gutter).
+
+### Verified
+
+`node --check` on all 8 modules; headless-Chrome smoke test (full 40-card deal, deck counter, stats graph render); in-page probe exercising `drawCard()` ×2, a paid undo-of-a-draw (deck/discard/score all correct), and a corrupt-history undo (correctly refuses without charging).
+
 ## How changes were verified
 
 No build/test tooling — verified via `node --check --input-type=module < file` for syntax, plus headless Chrome against `python3 -m http.server`:

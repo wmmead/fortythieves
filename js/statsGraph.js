@@ -6,10 +6,9 @@ statsGraph.js - Circular stats infographic
 Renders the circular stats graphic: two wedges (average score and win %)
 behind the circleGraphic.png overlay, with curved text labels.
 
-- createWedgeSVG(angleDeg, size, fill): Build a clockwise wedge SVG string,
-  starting at the left edge and sweeping up over the top.
-- createWedgeSVG_CCW(angleDeg, size, fill): Build a counterclockwise wedge SVG
-  string, starting at the left edge and sweeping down under the bottom.
+- createWedgeSVG(angleDeg, options): Build a wedge SVG string starting at the
+  left edge; sweeps clockwise up over the top, or counterclockwise down under
+  the bottom when options.clockwise is false.
 - percentageOf180(numerator, denominator): Map a value onto the 180-degree
   sweep of a half circle.
 - renderStatsGraph(container, stats, idPrefix): Render the full infographic
@@ -22,7 +21,7 @@ behind the circleGraphic.png overlay, with curved text labels.
 // Maximum possible score in a game; used to scale the average-score wedge
 const TOTAL_POSSIBLE_SCORE = 728;
 
-function createWedgeSVG(angleDeg, size = 200, fill = '#0a133b') {
+function createWedgeSVG(angleDeg, { clockwise = true, size = 200, fill = '#0a133b' } = {}) {
     const cx = size / 2;
     const cy = size / 2;
     const radius = size / 2;
@@ -31,9 +30,11 @@ function createWedgeSVG(angleDeg, size = 200, fill = '#0a133b') {
         return `<svg width="100%" height="100%" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg"></svg>`;
     }
 
-    // Start angle at 180 degrees (left edge), sweep clockwise
+    // Start angle at 180 degrees (left edge); sweep clockwise up over the top,
+    // or counterclockwise down under the bottom
     const startAngle = Math.PI;
-    const endAngle = startAngle + (angleDeg * Math.PI / 180);
+    const direction = clockwise ? 1 : -1;
+    const endAngle = startAngle + direction * (angleDeg * Math.PI / 180);
 
     const x0 = cx + radius * Math.cos(startAngle);
     const y0 = cy + radius * Math.sin(startAngle);
@@ -41,35 +42,7 @@ function createWedgeSVG(angleDeg, size = 200, fill = '#0a133b') {
     const y1 = cy + radius * Math.sin(endAngle);
 
     const largeArcFlag = angleDeg > 180 ? 1 : 0;
-    const sweepFlag = 1;
-
-    const path = `M ${cx} ${cy} L ${x0} ${y0} A ${radius} ${radius} 0 ${largeArcFlag} ${sweepFlag} ${x1} ${y1} Z`;
-
-    return `<svg width="100%" height="100%" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg">
-        <path d="${path}" fill="${fill}" />
-    </svg>`;
-}
-
-function createWedgeSVG_CCW(angleDeg, size = 200, fill = 'red') {
-    const cx = size / 2;
-    const cy = size / 2;
-    const radius = size / 2;
-
-    if (angleDeg <= 0) {
-        return `<svg width="100%" height="100%" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg"></svg>`;
-    }
-
-    // Start at 180 degrees (left edge), sweep counterclockwise
-    const startAngle = Math.PI;
-    const endAngle = startAngle - (angleDeg * Math.PI / 180);
-
-    const x0 = cx + radius * Math.cos(startAngle);
-    const y0 = cy + radius * Math.sin(startAngle);
-    const x1 = cx + radius * Math.cos(endAngle);
-    const y1 = cy + radius * Math.sin(endAngle);
-
-    const largeArcFlag = angleDeg > 180 ? 1 : 0;
-    const sweepFlag = 0;
+    const sweepFlag = clockwise ? 1 : 0;
 
     const path = `M ${cx} ${cy} L ${x0} ${y0} A ${radius} ${radius} 0 ${largeArcFlag} ${sweepFlag} ${x1} ${y1} Z`;
 
@@ -94,7 +67,7 @@ export function renderStatsGraph(container, { averageScore = 0, winPercent = 0 }
     container.innerHTML = `
         <div class="infograph-container">
             <div class="wedge">${createWedgeSVG(topAngle)}</div>
-            <div class="wedge">${createWedgeSVG_CCW(bottomAngle)}</div>
+            <div class="wedge">${createWedgeSVG(bottomAngle, { clockwise: false, fill: 'red' })}</div>
             <img src="images/circleGraphic.png" alt="game statistics graphic" class="graphic">
 
             <div class="wedge">

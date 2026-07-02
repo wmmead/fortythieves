@@ -1,6 +1,6 @@
 // Import UI update functions for card stacking, layout, and deck counter
-import { stackCards, setSectionHeights, createCardElement, blockUserInteraction, unblockUserInteraction, setDeckRefresh, setRefreshToEmpty, restoreDeck, clearBoard, updateUndoButtonText, updateDeckCounter, getContainerById, getClassElements, getLastDiscard, findCardInContainer, moveCardElement, updateCardPosition, restackCards, stackDiscard, updateSectionHeights, showError, updateScoreDisplay, updateDeckDisplay, showWinScreen, resetMain, updateGameStatsInfo, updateEndGameStats, closeMenu, maybeAutoShowInstructions } from './ui.js';
-import { getCardMoveDelta, animateMove, animateMoveFrom } from './animation.js';
+import { stackCards, setSectionHeights, createCardElement, blockUserInteraction, unblockUserInteraction, setDeckRefresh, setRefreshToEmpty, restoreDeck, clearBoard, updateUndoButtonText, updateDeckCounter, getContainerById, getClassElements, findCardInContainer, moveCardElement, updateCardPosition, stackDiscard, showError, updateScoreDisplay, showWinScreen, resetMain, updateGameStatsInfo, updateEndGameStats, closeMenu, maybeAutoShowInstructions } from './ui.js';
+import { getCardMoveDelta, animateCardMove, animateMoveFrom } from './animation.js';
 import { setupEventListeners } from './events.js';
 import { createNewGameRecord, updateCurrentGameStats, deleteZeroMoveRecords, getGameStatistics } from './stats.js';
 
@@ -51,8 +51,6 @@ UNDO & REDO OPERATIONS
 - undoDiscardMove(): Undo the last discard move, restore card to deck.
 - handleUndoCost(): Deduct score for undoing, update undo count and button.
 - canUndo(): Returns true if an undo is currently possible (history, points, game not over).
-- payUndoCost(): Internal helper to check and pay undo cost.
-- popLastMove(): Internal helper to pop the last move from history.
 
 SCORING & GAME PROGRESSION
 --------------------------
@@ -125,7 +123,7 @@ const cardValues = [
 export async function initGame() {
     updateUndoButtonText();
     await distributeCards(shuffledDeck);
-    updateDeckDisplay();
+    updateDeckCounter();
     stackDiscard(); // size the (empty) discard zone now that card dimensions are known
     deleteZeroMoveRecords();
     updateGameStatsInfo();
@@ -161,7 +159,7 @@ export async function startNewGame() {
     // determine what is shown in the stats window
     if(statsDisplayFlag){
         const mostRecentGame = lastGameData();
-        updateEndGameStats(mostRecentGame[0], mostRecentGame[2], mostRecentGame[1]);
+        updateEndGameStats(mostRecentGame.gamesPlayed, mostRecentGame.gamesWon, mostRecentGame.averageScore);
     } else {
         updateGameStatsInfo();
     }
@@ -177,7 +175,7 @@ export async function startNewGame() {
     updateScoreDisplay(score);
     // Deal new cards and reinitialize UI
     await distributeCards(shuffledDeck);
-    updateDeckDisplay();
+    updateDeckCounter();
     stackDiscard(); // re-size the (now empty) discard zone for the fresh board
     unblockUserInteraction();
     createNewGameRecord();
@@ -319,8 +317,8 @@ export function handleMoveHistory(action, move) {
    UNDO & REDO OPERATIONS
 ============================================================================ */
 export function undoBoardMove() {
-    if (!payUndoCost()) return;
-    const lastMove = popLastMove();
+    // Validate the move can actually be undone before charging the player
+    const lastMove = handleMoveHistory('peek');
     if (!lastMove) return;
 
     const fromContainer = getContainerById(lastMove.from);
@@ -336,6 +334,9 @@ export function undoBoardMove() {
         return;
     }
 
+    if (!handleUndoCost()) return;
+    handleMoveHistory('undo');
+
     if (toContainer.classList.contains('foundation')) {
         deductFoundationScore(card);
     }
@@ -346,19 +347,19 @@ export function undoBoardMove() {
         const firstRect = card.getBoundingClientRect();
         moveCardElement(card, fromContainer);
         updateCardPosition(card, fromContainer); // appends + stackDiscard -> final slot
-        restackCards();
-        updateSectionHeights();
+        stackCards();
+        setSectionHeights();
         const lastRect = card.getBoundingClientRect();
         animateMoveFrom(card, firstRect.left - lastRect.left, firstRect.top - lastRect.top);
         return;
     }
 
     const { deltaX, deltaY } = getCardMoveDelta(card, fromContainer);
-    animateMove(card, deltaX, deltaY, () => {
+    animateCardMove(card, deltaX, deltaY, () => {
         moveCardElement(card, fromContainer);
         updateCardPosition(card, fromContainer);
-        restackCards();
-        updateSectionHeights();
+        stackCards();
+        setSectionHeights();
     });
 }
 
@@ -373,14 +374,7 @@ export function undoDiscardMove() {
         return;
     }
     // The top card in the discard pile should be the one to move back
-    const cards = getLastDiscard(lastMove);
-    let card = null;
-    for (let i = cards.length - 1; i >= 0; i--) {
-        if (cards[i].parentElement === discard) {
-            card = cards[i];
-            break;
-        }
-    }
+    const card = findCardInContainer(discard, lastMove.cardId);
     if (!card) {
         console.warn('Undo failed: card not found in discard pile.', lastMove);
         return;
@@ -408,16 +402,6 @@ export function handleUndoCost() {
     setUndoCount(cost);
     updateUndoButtonText();
     return true; // Indicate success
-}
-
-function payUndoCost() {
-    // Return true if undo cost is paid, else false
-    return handleUndoCost();
-}
-
-function popLastMove() {
-    // Returns the last move object or null
-    return handleMoveHistory('undo');
 }
 
 /* ============================================================================
@@ -481,8 +465,11 @@ function lastGameData(){
     if (score == 728) {
         newWinCount++;
     }
-    const gameData = [updatedGameCount, roundedAverage, newWinCount];
-    return gameData;
+    return {
+        gamesPlayed: updatedGameCount,
+        averageScore: roundedAverage,
+        gamesWon: newWinCount
+    };
 }
 
 function checkWinCondition() {
@@ -497,8 +484,8 @@ function checkWinCondition() {
     updateUndoButtonText();
 
     const mostRecentGame = lastGameData();
-    updateEndGameStats(mostRecentGame[0], mostRecentGame[2], mostRecentGame[1]);
-    
+    updateEndGameStats(mostRecentGame.gamesPlayed, mostRecentGame.gamesWon, mostRecentGame.averageScore);
+
     let winType;
     if( score == 728 ){
         winType = 'win';
@@ -515,11 +502,7 @@ export function setStatsDisplayFlag(value){
 }
 
 export function getStatsDisplayFlagValue(){
-    if(statsDisplayFlag){
-        return true;
-    } else {
-        return false;
-    }
+    return statsDisplayFlag;
 }
 
 /* ============================================================================

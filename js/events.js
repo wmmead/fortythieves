@@ -2,14 +2,18 @@ import { moveCardToCandidate, drawCard, refreshDeck, handleCardClick, handleCard
 
 import { startNewGame, selectedCard, setStatsDisplayFlag, setOlenMode } from './game.js';
 
-import { clearSelection, updateUndoButtonText, resetGameStatsInfo, updateDeckDisplay, toggleMenu, closeMenu, olenModeDisplay, openInstructions, closeInstructions } from './ui.js';
+import { clearSelection, updateUndoButtonText, resetGameStatsInfo, updateDeckCounter, toggleMenu, closeMenu, olenModeDisplay, openInstructions, closeInstructions, stackCards, setSectionHeights, stackDiscard, updateCardImageDirectory } from './ui.js';
 
 import { deleteAllSolitaireUserData } from './stats.js';
 
 
 export function setupEventListeners() {
+    // Debounce so the full restack only runs once the resize settles,
+    // not dozens of times per second while the window is being dragged
+    let resizeTimer = null;
     window.addEventListener('resize', () => {
-        import('./ui.js').then(({ stackCards, setSectionHeights, updateCardImageDirectory, stackDiscard }) => {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(() => {
             stackCards();
             setSectionHeights();
             stackDiscard();
@@ -19,7 +23,7 @@ export function setupEventListeners() {
             } else {
                 updateCardImageDirectory('cards-small', 'cards');
             }
-        });
+        }, 100);
     });
 
     document.addEventListener('click', function(e) {
@@ -44,6 +48,7 @@ export function setupEventListeners() {
             return;
         }
         if (undoBtn) {
+            e.preventDefault(); // it's an <a href="#">; don't jump to the top of the page
             if (undoBtn.classList.contains('disabled')) return;
             handleUndoRequest();
             updateUndoButtonText();
@@ -51,7 +56,7 @@ export function setupEventListeners() {
         }
         if (deck) {
             drawCard();
-            updateDeckDisplay();
+            updateDeckCounter();
             return;
         }
         if (refresh) {
@@ -60,6 +65,7 @@ export function setupEventListeners() {
         }
         if (hamburgermenu){
             toggleMenu();
+            return;
         }
         if (resetStats) {
             // deletes all data
@@ -70,6 +76,7 @@ export function setupEventListeners() {
             setStatsDisplayFlag(false);
             // starts a new game
             startNewGame();
+            return;
         }
         if (candidate && selectedCard) {
             moveCardToCandidate(candidate, selectedCard);
@@ -94,7 +101,8 @@ export function setupEventListeners() {
     });
 
     document.querySelectorAll('.newgame').forEach(btn => {
-        btn.addEventListener('click', () => {
+        btn.addEventListener('click', (e) => {
+            e.preventDefault(); // it's an <a href="#">; don't jump to the top of the page
             startNewGame();
         });
     });
@@ -106,12 +114,7 @@ export function setupEventListeners() {
 
     function handleHoldHeader() {
         const mode = prompt('type "true" to enable Olen mode, "false" to disable Olen mode');
-        if(mode === 'true'){
-            const convertToBoolean = Boolean(mode);
-            setOlenMode(convertToBoolean);
-        } else {
-            setOlenMode(false);
-        }
+        setOlenMode(mode === 'true');
         olenModeDisplay();
     }
 

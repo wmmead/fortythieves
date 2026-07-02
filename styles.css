@@ -154,7 +154,7 @@ h1 span:last-of-type {
     width: 100%;
     padding-right: 5%;
     height: calc(100svh - 100px);
-    overflow-y: scroll;
+    overflow-y: auto;
 }
 
 #instructions h1 {
