@@ -5,7 +5,7 @@ body {
     font-family: "PT Sans Narrow", sans-serif;
     font-weight: 400;
     font-style: normal;
-    background: url(images/background3.jpg);
+    background: url(images/background5.jpg);
     padding: 0;
 }
 
@@ -21,6 +21,7 @@ h1 {
     font-family: "Jomhuria", serif;
     font-weight: 400;
     font-style: normal;
+    padding-top: 20px;
     color: #0d1532;
     grid-column: span 2;
     line-height: .9em;
@@ -296,7 +297,7 @@ h1 span:last-of-type {
 #divider {
     grid-row: 4;
     grid-column: 1 / -1;
-    background-image: url(images/background4.jpg);
+    background-image: url(images/background6.jpg);
     height: 15px;
     border-radius: 5px;
 }
@@ -307,7 +308,7 @@ h1 span:last-of-type {
     aspect-ratio: 500 / 726;
     border: 1px solid #666;
     border-radius: 5px;
-    background-image: url(cards/cardback2.jpg);
+    background-image: url(cards/cardback3.jpg);
     background-repeat: no-repeat;
     background-size: cover;
     place-self: center;
@@ -438,14 +439,14 @@ h1 span:last-of-type {
 #score-container h2, #score-container p {
     text-align: center;
     margin: 0;
-    line-height: 1em;
+    line-height: .8em;
     font-weight: 700;
     color: #131b30;
 }
 
 #score-container h2 {
     font-size: 4vw;
-    line-height: 1em;
+    line-height: .8em;
 }
 
 #score-container p:first-of-type {
