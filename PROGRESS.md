@@ -144,6 +144,32 @@ Code-review pass over all the June 2026 work; applied every finding except optim
 
 `node --check` on all 8 modules; headless-Chrome smoke test (full 40-card deal, deck counter, stats graph render); in-page probe exercising `drawCard()` ×2, a paid undo-of-a-draw (deck/discard/score all correct), and a corrupt-history undo (correctly refuses without charging).
 
+## Session: August 25, 2026
+
+Bill had made graphics/styling updates on his own since the July 1 session (logo swapped `logoBG.png` → `star.png`, new background/divider/cardback images, an optimized then re-swapped `circleGraphic.png`/`circleGraphic2.png`, minor `h1`/`#score-container` spacing tweaks — commits `933aa37`, `8f7778c`, `e574f66`). This session added two small features on top of that.
+
+### Games-played count in the stats graphic
+
+- `js/statsGraph.js` — `renderStatsGraph()` takes a new `gamesPlayed` option and renders a `<div class="game-count">` on top of the star, alongside the existing wedges/labels.
+- `js/ui.js` — `latestStats` (used to re-render the graphic on the mobile win screen) now carries `gamesPlayed` too; `refreshStatsGraph()` passes it through.
+- `styles.css` — new `.game-count`: a flex-centered circle (`aspect-ratio: 1/1`, `min-width: 1.8em`, `padding: 0 0.3em`) so its width grows with digit count (1, 2, 3+) while height auto-matches via the aspect ratio, always staying a circle rather than an oval. Fill/border colors (`#9a91c4` / `#f8eedb`) were sampled from Bill's reference mockup (`circleGraphic.png`, untracked, root-level — temporary, not used by any code).
+- Verified via headless Chrome at 7 / 42 / 123 games played — circle scales correctly and stays round at all three digit counts.
+
+### Error message moved from the grid to a centered overlay
+
+- Bill wanted error messages (`showError()` in `js/ui.js`) out of their fixed grid cell and into a small popup centered on screen instead, with the same look-and-disappear-after-3s behavior.
+- `index.html` — `#error-message` no longer sits in a grid-column div; it's wrapped in a new `#error-overlay`.
+- `styles.css` — `#error-overlay` is `position: fixed; inset: 0;` and centers its child with flexbox (`z-index: 1500`, above the menu/instructions; `pointer-events: none` so the box — sized even when invisible — never blocks clicks on the board underneath). `#error-message` itself carries only the visual box styling (white background, dashed red border, padding) — deliberately basic since Bill plans to restyle it. Removed the old `#error-container` grid rule and its two now-dead mobile-breakpoint overrides.
+- **Found and fixed a GSAP/CSS transform conflict along the way:** the first version centered `#error-message` itself with `position: fixed` + `transform: translate(-50%, -50%)`. `shakeElement()` (see below) animates the element's `transform`/`x`, and GSAP takes full ownership of that property — its final keyframe (`x: 0`) permanently overwrote the `-50%, -50%` centering offset the first time a message shook, leaving the box off-center from then on (this is why it looked fine when toggled manually in devtools but drifted in real gameplay). Fix: centering now lives entirely on the non-animated `#error-overlay` wrapper via flexbox, so `#error-message` has no transform of its own for GSAP to clobber. Verified across two consecutive shakes with different message lengths — no drift.
+
+### Shake animation tuned
+
+- `js/animation.js` — `shakeElement()` was `x: 10` one-directional (0 → 10px), `duration: 0.05`, `repeat: 9` (10 legs, 0.5s total) — Bill found it too fast and too much motion. Changed to a `keyframes` array `[0, -10, 10, -10, 10, -10, 10, -10, 10, 0]` over `duration: 0.9` (same 9-segment count, but each leg now ~0.1s — half the original speed): a real left-right shake spanning −10px to +10px (20px peak-to-peak) that still settles cleanly back to 0.
+
+### Verified
+
+`node --check` on all edited modules; headless-Chrome screenshots of the stats graphic (1/2/3-digit counts) and the error overlay (idle, mid-shake, auto-hidden after 3s, and a second shake with different message length to confirm no positional drift).
+
 ## How changes were verified
 
 No build/test tooling — verified via `node --check --input-type=module < file` for syntax, plus headless Chrome against `python3 -m http.server`:

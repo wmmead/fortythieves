@@ -4,7 +4,8 @@ statsGraph.js - Circular stats infographic
 ================================================================================
 
 Renders the circular stats graphic: two wedges (average score and win %)
-behind the circleGraphic.png overlay, with curved text labels.
+behind the circleGraphic2.png overlay, with curved text labels and the
+games-played count in a circle at the center of the star.
 
 - createWedgeSVG(angleDeg, options): Build a wedge SVG string starting at the
   left edge; sweeps clockwise up over the top, or counterclockwise down under
@@ -58,7 +59,7 @@ function percentageOf180(numerator, denominator) {
     return Math.round(result * 100) / 100;
 }
 
-export function renderStatsGraph(container, { averageScore = 0, winPercent = 0 } = {}, idPrefix = '') {
+export function renderStatsGraph(container, { averageScore = 0, winPercent = 0, gamesPlayed = 0 } = {}, idPrefix = '') {
     if (!container) return;
 
     const topAngle = percentageOf180(averageScore, TOTAL_POSSIBLE_SCORE);
@@ -69,6 +70,7 @@ export function renderStatsGraph(container, { averageScore = 0, winPercent = 0 }
             <div class="wedge">${createWedgeSVG(topAngle)}</div>
             <div class="wedge">${createWedgeSVG(bottomAngle, { clockwise: false, fill: 'red' })}</div>
             <img src="images/circleGraphic2.png" alt="game statistics graphic" class="graphic">
+            <div class="game-count">${gamesPlayed}</div>
 
             <div class="wedge">
                 <svg width="100%" height="100%" viewBox="0 0 100 100">

@@ -111,6 +111,27 @@ h1 span:last-of-type {
     transform: translate(-50%, -50%);
 }
 
+.game-count {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    min-width: 1.8em;
+    aspect-ratio: 1 / 1;
+    padding: 0 0.3em;
+    border-radius: 50%;
+    background: #9a91c4;
+    border: 2px solid #f8eedb;
+    color: #fff;
+    font-weight: 700;
+    font-size: 14px;
+    line-height: 1;
+}
+
 .circle-text {
   /* font-family: Arial, sans-serif; */
   font-size: 9px;
@@ -458,14 +479,20 @@ h1 span:last-of-type {
     font-size: 3vw;
 }
 
-#error-container {
-    grid-row: 1;
-    grid-column: 3 / 9;
-    display: grid;
-    place-content: center;
+/* Centers #error-message without a CSS transform, so GSAP's shake (which */
+/* animates transform/x) never fights with a translate(-50%, -50%) offset. */
+#error-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1500;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
 }
 
 #error-message {
+    background: #fff;
     border: 3px dashed red;
     padding: 15px;
     border-radius: 5px;
@@ -732,10 +759,6 @@ section {
         font-size: 1.5em;
     }
 
-    #error-message {
-        margin: 0;
-    }
-
     #stats-container {
         flex-direction: column;
         justify-content: flex-start;
@@ -823,10 +846,4 @@ section {
         width: 190%;
     }
 
-    #error-container {
-        grid-row: 5;
-        grid-column: 3 / -1;
-        display: grid;
-        place-content: center;
-    }
 }

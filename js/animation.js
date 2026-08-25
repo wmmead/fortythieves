@@ -2,10 +2,8 @@
 /* global gsap */ // gsap is loaded as a global via the <script> tag in index.html
 export function shakeElement(element) {
   gsap.to(element, {
-    x: 10,
-    duration: 0.05,
-    yoyo: true,
-    repeat: 9,
+    keyframes: { x: [0, -10, 10, -10, 10, -10, 10, -10, 10, 0] },
+    duration: 0.9,
     ease: "power1.inOut",
   });
 }

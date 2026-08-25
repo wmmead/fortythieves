@@ -434,11 +434,11 @@ export function updateScoreDisplay(score) {
 }
 
 // Most recent stats rendered to the graph; used by the win screen on small viewports
-let latestStats = { averageScore: 0, winPercent: 0 };
+let latestStats = { averageScore: 0, winPercent: 0, gamesPlayed: 0 };
 
 function refreshStatsGraph(gamesPlayed, averageScore, gamesWon) {
     const winPercent = gamesPlayed > 0 ? Math.round((gamesWon / gamesPlayed) * 100) : 0;
-    latestStats = { averageScore, winPercent };
+    latestStats = { averageScore, winPercent, gamesPlayed };
     renderStatsGraph(document.getElementById('statsgraph'), latestStats, 'hdr-');
 }
 
