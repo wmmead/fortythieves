@@ -183,7 +183,32 @@ No build/test tooling — verified via `node --check --input-type=module < file`
 
 **Testing the ≤490px mobile branch:** headless Chrome on macOS clamps `innerWidth` to a 500px minimum, so `--window-size=460` still reports 500 and the ≤490 media query won't match. To get a true sub-490 viewport, drive the DevTools protocol directly (Node ≥21 has a global `WebSocket`): launch Chrome with `--remote-debugging-port`, create a target, and call `Emulation.setDeviceMetricsOverride { width: 460, mobile: true }` before navigating, then `Page.captureScreenshot` / `Runtime.evaluate`. (A reusable `shot.mjs` driver was used this session, in scratch — not committed.) Note the deal animation runs slower under emulation, so programmatic `drawCard()` calls timed off a fixed delay can fire before the deck is ready; trigger draws after confirming the deal finished, or inject cards directly for layout-only checks.
 
+## Session: August 26, 2026
+
+Bill won a game (no deck refresh, no undo) that involved a lot of foundation → tableau shuffling, and the win screen reported less than the full possible score. Traced and fixed two scoring bugs, then closed a related exploit.
+
+### Bug 1 — double-scored moves from clicking a target during its move animation (`js/gameActions.js`)
+
+- `moveCardToCandidate()` only applies a move (DOM reparenting, scoring via `handleScoringAndWin()`, and `recordMove()`) inside the 0.3s GSAP animation's `onComplete`. Until then, the source card is still `.selected` and the destination is still a clickable `.candidate` highlight. A second click on the same destination during that window — easy to do when moving cards quickly, e.g. repeated foundation → tableau shuffling — replayed the full move logic a second time, subtracting the card's value from the score again with nothing to offset it, and also wrote a duplicate entry into the undo history. This is almost certainly what cost Bill points during his difficult win.
+- Fix: the card is flagged in-flight (`card.dataset.moving = 'true'`) when a move starts and any move request for it is ignored until the animation's `onComplete` clears the flag.
+
+### Bug 2 — foundation → foundation move awarded points without an offsetting subtraction (`js/game.js`)
+
+- With two decks, a foundation's top card can legally move onto the other foundation of the same suit (e.g. 7♥ onto 6♥). `handleScoringAndWin()` only subtracted the card's value when the *destination* was a tableau `SECTION`; a foundation-to-foundation move fell through neither branch's subtract path but still hit the "placed on a foundation" add path, silently inflating the score. Also threatened the exact-728 "perfect win" check.
+- Fix: the subtract condition now fires whenever the source is a foundation, regardless of destination (`fromIsFoundation` alone, not `fromIsFoundation && isSection`), so foundation → foundation nets to zero. Reordered the function to add → subtract → win-check, so `checkWinCondition()` always evaluates the fully-settled score for that move.
+
+### Follow-up — block foundation → tableau moves the player can't afford
+
+- Previously, moving a card off a foundation when the score was lower than the card's value clamped the score at 0 (via `subtractScore`'s floor) instead of going negative — a free-points loophole once the two bugs above were fixed and the accounting became exact.
+- `js/gameActions.js` — new `canAffordFoundationMove()` gate (skipped in Olen mode, mirrors the existing undo-affordability check): tableau highlights are suppressed for a foundation card the player can't afford to bring down (`showCandidateTargets()`), and `moveCardToCandidate()` — the single choke point every move (click and double-click) goes through — rejects the move outright with `showError('You need more points to move this card off the foundation.')`, cleaning up any temp placeholder candidate first. Foundation → foundation targets are unaffected (always free). `moveCardToCandidate()` now returns `true`/`false` so `moveCardToTarget()` (the double-click path) only sets the stats-commit flag when a move actually happened.
+- Tradeoff, same as the pre-existing undo/refresh cost mechanics: this can make a game unwinnable in a narrow spot if the only path forward requires bringing down a card the player can't yet afford.
+
+### Verified
+
+`node --check --input-type=module` on `js/game.js` and `js/gameActions.js`.
+
 ## Remaining known issues / possible next steps
 
 - **Mobile divider vs. long fan** (minor, cosmetic) — the ≤490px divider is a stable grid border spanning the foundation+tableau rows; a discard fan long enough to overflow that area extends slightly past the bottom of the border. Chosen tradeoff (grid-only, no JS) over the fan-tracking absolute-positioned version. Revisit if it bothers.
+- **Foundation-move affordability can strand a game** (see August 26 session) — narrow edge case, matches existing undo/refresh cost design; revisit only if it proves annoying in practice.
 - No other tracked items. (Done June 23: mobile discard layout, discard zone styling, undo-of-a-discard-play jump.)
