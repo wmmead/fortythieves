@@ -59,10 +59,20 @@ const foundations = getClassElements('foundation');
 /* ============================================================================
    CARD SELECTION & MOVE TARGETING
 ============================================================================ */
+// Moving a card off a foundation back to the tableau costs its value in points;
+// foundation-to-foundation moves are free. Olen mode skips the rule entirely.
+function canAffordFoundationMove(card, fromContainer, targetIsSection) {
+    if (olenMode) return true;
+    if (!fromContainer.classList.contains('foundation') || !targetIsSection) return true;
+    return score >= getCardValue(card);
+}
+
 export function showCandidateTargets(card) {
     const sourceElement = card.parentElement;
     // Assumes 'foundations' is available in scope
-    highlightTableauTargets(card, sourceElement);
+    if (canAffordFoundationMove(card, sourceElement, true)) {
+        highlightTableauTargets(card, sourceElement);
+    }
     highlightFoundationTargets(card, foundations);
 }
 
@@ -115,23 +125,40 @@ function checkCardPosition(card){
    CARD MOVEMENT & ANIMATION
 ============================================================================ */
 export function moveCardToCandidate(candidate, card) {
+    // The move (DOM reparenting, scoring, history) is applied in the animation's
+    // onComplete, so the selection and candidate highlights stay live while the
+    // card is in flight. A second click during that window would replay the whole
+    // move — double-scoring it — so ignore clicks on a card already in motion.
+    if (card.dataset.moving === 'true') return false;
+
     const targetContainer = candidate.parentNode;
     const fromContainer = card.parentElement;
+
+    if (!canAffordFoundationMove(card, fromContainer, targetContainer.tagName === 'SECTION')) {
+        if (candidate.classList.contains('temp')) candidate.remove();
+        showError('You need more points to move this card off the foundation.');
+        return false;
+    }
+
+    card.dataset.moving = 'true';
     const selectedRect = card.getBoundingClientRect();
     const candidateRect = candidate.getBoundingClientRect();
     const deltaX = candidateRect.left - selectedRect.left;
     const deltaY = candidateRect.top - selectedRect.top;
 
     animateCardMove(card, deltaX, deltaY, () => {
+        delete card.dataset.moving;
         handleDOMAfterMove(card, candidate, fromContainer, targetContainer);
         handleScoringAndWin(card, fromContainer, targetContainer);
         recordMove(card, fromContainer, targetContainer);
     });
+    return true;
 }
 
 function moveCardToTarget(target, card) {
-    setStatsDisplayFlag(true);
-    moveCardToCandidate(target, card);
+    if (moveCardToCandidate(target, card)) {
+        setStatsDisplayFlag(true);
+    }
 }
 
 /* ============================================================================

@@ -409,19 +409,26 @@ export function handleUndoCost() {
 ============================================================================ */
 export function handleScoringAndWin(card, fromContainer, targetContainer) {
     const isFoundation = targetContainer.classList.contains('foundation');
-    const isSection = targetContainer.tagName === 'SECTION';
     const fromIsFoundation = fromContainer.classList.contains('foundation');
     const cardValue = parseInt(card.getAttribute('data-value'), 10);
 
     // Add to score if card is placed on a foundation
     if (isFoundation) {
         addScore(cardValue);
-        checkWinCondition();
     }
 
-    // Subtract from score if card is moved FROM a foundation TO a section
-    if (fromIsFoundation && isSection) {
+    // Subtract from score if card is moved FROM a foundation, whether to a
+    // tableau section or to the other foundation of the same suit — a
+    // foundation-to-foundation move must net zero, not award points again.
+    // Adding before subtracting keeps the score from dipping below zero
+    // (subtractScore clamps at 0) on a foundation-to-foundation move.
+    if (fromIsFoundation) {
         subtractScore(cardValue);
+    }
+
+    // Only check for the win once the score for this move is fully settled
+    if (isFoundation) {
+        checkWinCondition();
     }
 }
 
