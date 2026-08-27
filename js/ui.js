@@ -1,4 +1,4 @@
-import { shuffledDeck, setSelectedCard, undoCount, isValidTableauMove, isValidFoundationMove, getRefreshCost, olenMode, canUndo } from './game.js';
+import { shuffledDeck, setSelectedCard, isValidTableauMove, isValidFoundationMove, getRefreshCost, olenMode, canUndo } from './game.js';
 import { shakeElement } from './animation.js';
 import { getGameStatistics } from './stats.js';
 import { renderStatsGraph } from './statsGraph.js';
@@ -46,7 +46,7 @@ SECTION: VISUAL FEEDBACK
 SECTION: GAME DISPLAY
 ---------------------
 - updateDeckCounter(): Show or update the deck's remaining card counter.
-- updateUndoButtonText(): Update the undo button text to reflect the next cost.
+- updateUndoButtonText(): Update the undo button label and enabled/disabled state.
 - updateScoreDisplay(score): Update the displayed score.
 - updateGameStatsInfo(): Sets the DOM so show the current stats
 - updateEndGameStats(): Sets the stats window at the end of the game to show stats + current game.
@@ -424,8 +424,7 @@ export function updateDeckCounter() {
 export function updateUndoButtonText() {
     const undoBtn = document.getElementById('undo');
     if (undoBtn) {
-        const nextCost = undoCount + 1;
-        undoBtn.textContent = `Undo (-${nextCost} point${nextCost > 1 ? 's' : ''})`;
+        undoBtn.textContent = 'undo last move';
         undoBtn.classList.toggle('disabled', !canUndo());
     }
 }

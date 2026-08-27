@@ -18,7 +18,7 @@ MODULE-LEVEL VARIABLES & CONSTANTS
 - shuffledDeck: Array representing the current shuffled deck.
 - selectedCard: Currently selected card (or null).
 - score: Current player score.
-- undoCount: Number of undo actions taken.
+- undoUsed: True when the single free undo has been spent (re-armed by the next move or draw).
 - cardValues: Array of all card identifiers for two decks.
 
 INITIALIZATION & SETUP
@@ -49,8 +49,8 @@ UNDO & REDO OPERATIONS
 ----------------------
 - undoBoardMove(): Undo the last board move, animate and update UI.
 - undoDiscardMove(): Undo the last discard move, restore card to deck.
-- handleUndoCost(): Deduct score for undoing, update undo count and button.
-- canUndo(): Returns true if an undo is currently possible (history, points, game not over).
+- consumeUndo(): Spend the single free undo; fails if it was already used.
+- canUndo(): Returns true if an undo is currently possible (history, undo available, game not over).
 
 SCORING & GAME PROGRESSION
 --------------------------
@@ -66,7 +66,6 @@ SCORING & GAME PROGRESSION
 DECK REFRESH & COST MANAGEMENT
 ------------------------------
 - calcullateDeckRefreshCost() Calculates the refresh cost based on the number of points left available
-- setUndoCount(value): Set the undo count.
 - getRefreshCost(): Return the current cost to refresh the deck.
 
 ================================================================================
@@ -86,7 +85,9 @@ export const moveHistory = [];
 export let shuffledDeck = [];
 export let selectedCard = null;
 export let score = 0;
-export let undoCount = 0;
+// The free undo: only the most recent action can be undone. Once spent, undo
+// stays disabled until the player draws a card or moves a card again.
+let undoUsed = false;
 // Full list of card identifiers for two standard decks (104 cards)
 const cardValues = [
     'c1', 'd1', 'h1', 's1', 
@@ -168,7 +169,7 @@ export async function startNewGame() {
     // reset score and undo state to zero
     score = 0;
     moveHistory.length = 0;
-    setUndoCount(0);
+    undoUsed = false;
     gameOver = false;
     updateUndoButtonText();
     // update score display
@@ -282,6 +283,7 @@ export function recordDrawMove(cardId) {
         from: 'deck',
         to: 'discard'
     });
+    undoUsed = false; // drawing a card re-arms the free undo
     updateUndoButtonText();
 }
 
@@ -293,6 +295,7 @@ export function recordMove(card, fromContainer, targetContainer) {
     };
     handleMoveHistory('add', move);
     updateCurrentGameStats(score);
+    undoUsed = false; // moving a card re-arms the free undo
     updateUndoButtonText();
 }
 
@@ -334,7 +337,7 @@ export function undoBoardMove() {
         return;
     }
 
-    if (!handleUndoCost()) return;
+    if (!consumeUndo()) return;
     handleMoveHistory('undo');
 
     if (toContainer.classList.contains('foundation')) {
@@ -364,8 +367,8 @@ export function undoBoardMove() {
 }
 
 export function undoDiscardMove() {
-    if (!handleUndoCost()) return; // Only proceed if cost was paid
-    const lastMove = handleMoveHistory('undo');
+    // Validate the draw can actually be undone before spending the free undo
+    const lastMove = handleMoveHistory('peek');
     if (!lastMove) return;
 
     const discard = getContainerById('discard');
@@ -379,6 +382,9 @@ export function undoDiscardMove() {
         console.warn('Undo failed: card not found in discard pile.', lastMove);
         return;
     }
+
+    if (!consumeUndo()) return; // Only proceed if the free undo was available
+    handleMoveHistory('undo');
     // Remove card from discard and put it back on top of the deck (data only, not animated)
     discard.removeChild(card);
     shuffledDeck.unshift(lastMove.cardId); // Put card string back on top of deck
@@ -390,16 +396,14 @@ export function undoDiscardMove() {
     updateDeckCounter();
 }
 
-export function handleUndoCost() {
-    const cost = undoCount + 1;
-    //console.log(score);
-    if (score < cost) {
-        showError('You need more points to undo this move.')
-        //alert('Not enough points to undo this move.');
+// Undo is free, but only the last action can be undone: once spent it stays
+// unavailable until the player draws or moves a card again.
+function consumeUndo() {
+    if (undoUsed) {
+        showError('You can only undo your last move. Draw or move a card first.');
         return false; // Indicate failure
     }
-    subtractScore(cost);
-    setUndoCount(cost);
+    undoUsed = true;
     updateUndoButtonText();
     return true; // Indicate success
 }
@@ -516,29 +520,21 @@ export function getStatsDisplayFlagValue(){
    DECK REFRESH & COST MANAGEMENT
 ============================================================================ */
 
-function calcullateDeckRefreshCost(score, undoCount) {
-  // Calculate total points spent on using the undo button
-  let undoPoints = undoCount * (undoCount + 1) / 2;
-  // Add undo points to the score
-  let totalScore = score + undoPoints;
-  // Subtract the total from 728
-  let difference = 728 - totalScore;
+function calcullateDeckRefreshCost(score) {
+  // Subtract the score from the 728 total possible points
+  let difference = 728 - score;
   // Multiply the result by 0.25
   let finalValue = Math.ceil(difference * 0.25);
   return finalValue;
 }
 
-export function setUndoCount(value) {
-    undoCount = value;
-}
-
-// True only when there is a move to undo, the player can afford it, and the game is still in progress
+// True only when there is a move to undo, the free undo hasn't been spent, and the game is still in progress
 export function canUndo() {
-    return moveHistory.length > 0 && score >= undoCount + 1 && !gameOver;
+    return moveHistory.length > 0 && !undoUsed && !gameOver;
 }
 
 export function getRefreshCost(){
-    const cost = calcullateDeckRefreshCost(score, undoCount);
+    const cost = calcullateDeckRefreshCost(score);
     return cost;
 }
 

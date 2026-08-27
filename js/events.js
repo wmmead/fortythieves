@@ -1,6 +1,6 @@
 import { moveCardToCandidate, drawCard, refreshDeck, handleCardClick, handleCardDoubleClick, handleUndoRequest } from './gameActions.js';
 
-import { startNewGame, selectedCard, setStatsDisplayFlag, setOlenMode } from './game.js';
+import { startNewGame, selectedCard, setStatsDisplayFlag, setOlenMode, canUndo } from './game.js';
 
 import { clearSelection, updateUndoButtonText, resetGameStatsInfo, updateDeckCounter, toggleMenu, closeMenu, olenModeDisplay, openInstructions, closeInstructions, stackCards, setSectionHeights, stackDiscard, updateCardImageDirectory } from './ui.js';
 
@@ -90,6 +90,13 @@ export function setupEventListeners() {
     // Close the instructions popup on Escape
     document.addEventListener('keydown', function(e) {
         if (e.key === 'Escape') closeInstructions();
+        // Cmd+Z (Mac) / Ctrl+Z (Windows) triggers undo, same as the menu button
+        if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key.toLowerCase() === 'z') {
+            e.preventDefault(); // keep the browser from undoing text edits instead
+            if (!canUndo()) return;
+            handleUndoRequest();
+            updateUndoButtonText();
+        }
     });
 
     // Add double-click event for auto-move

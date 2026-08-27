@@ -207,8 +207,32 @@ Bill won a game (no deck refresh, no undo) that involved a lot of foundation →
 
 `node --check --input-type=module` on `js/game.js` and `js/gameActions.js`.
 
+## Session: August 27, 2026
+
+Reworked the undo feature: the escalating point cost is gone. Undo is now **free but single-use** — only the very last action (a card move or a deck draw) can be undone, and the button greys out after use until the player draws or moves a card again, which re-arms it. Also added a keyboard shortcut for undo.
+
+### Undo rework
+
+- `js/game.js`:
+  - `undoCount` (the escalating cost counter) replaced by an `undoUsed` boolean. `handleUndoCost()` (which deducted 1, 2, 3… points) became `consumeUndo()`: checks the free undo is available, marks it spent, refreshes the button — no score deduction. `setUndoCount()` removed.
+  - `canUndo()` is now `moveHistory.length > 0 && !undoUsed && !gameOver` (no affordability check). Button still starts disabled at game start and stays disabled after a win, as before.
+  - `recordMove()` and `recordDrawMove()` set `undoUsed = false`, so moving a card or turning over a deck card re-enables undo. (Refreshing the deck deliberately does *not* re-arm it.)
+  - `calcullateDeckRefreshCost()` no longer adds back "points spent on undos" — refresh cost is simply `⌈(728 − score) × 0.25⌉`.
+  - `undoDiscardMove()` now peeks and validates (discard exists, card found) *before* consuming the undo and popping history, mirroring the July 1 fix to `undoBoardMove()` — a failed undo no longer wastes the free undo or drops the move.
+  - Kept intentionally: `deductFoundationScore()` on undoing a foundation placement (that reverses points *earned*, not a fee), and the foundation → tableau affordability gate from Aug 26.
+- `js/ui.js` — `updateUndoButtonText()` shows a static "undo last move" label (no cost readout) and toggles the existing `.disabled` class from `canUndo()`.
+- `index.html` — menu label "undo move (-1 point)" → "undo last move"; How To Play rewritten: undo paragraph now describes the free single-undo, and the deck-refresh paragraph no longer says the 728 total depends on not undoing.
+
+### Cmd+Z / Ctrl+Z keyboard shortcut
+
+- `js/events.js` — the existing `keydown` listener (Escape → close instructions) also handles Cmd+Z (Mac) / Ctrl+Z (Windows): `preventDefault()`, then the same path as the menu button (`canUndo()` guard → `handleUndoRequest()` → `updateUndoButtonText()`). Silently no-ops when undo is unavailable, matching the greyed button. Shift+Cmd/Ctrl+Z (conventional "redo") is deliberately ignored.
+
+### Verified
+
+`node --check` on `js/game.js`, `js/ui.js`, `js/events.js`; grep confirmed no stale `undoCount` / `setUndoCount` / `handleUndoCost` references. Bill tested the undo flow in the browser (an in-session headless verification was cut short by a Chrome-extension disconnect); Bill is testing the keyboard shortcut himself.
+
 ## Remaining known issues / possible next steps
 
 - **Mobile divider vs. long fan** (minor, cosmetic) — the ≤490px divider is a stable grid border spanning the foundation+tableau rows; a discard fan long enough to overflow that area extends slightly past the bottom of the border. Chosen tradeoff (grid-only, no JS) over the fan-tracking absolute-positioned version. Revisit if it bothers.
-- **Foundation-move affordability can strand a game** (see August 26 session) — narrow edge case, matches existing undo/refresh cost design; revisit only if it proves annoying in practice.
+- **Foundation-move affordability can strand a game** (see August 26 session) — narrow edge case, matches the deck-refresh cost design (the undo cost it also mirrored was removed August 27); revisit only if it proves annoying in practice.
 - No other tracked items. (Done June 23: mobile discard layout, discard zone styling, undo-of-a-discard-play jump.)
