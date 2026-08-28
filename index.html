@@ -26,9 +26,9 @@
         <img src="images/menu.svg" id="hamburgermenu" alt="menu icon">
         <nav id="menu" class="close">
             <ul>
-                <li><a href="#" class="newgame action-bttn">new game</a></li>
                 <li><a href="#" class="action-bttn" id="undo">undo last move</a></li>
                 <li><a href="#" class="action-bttn" id="howtoplay">How To Play</a></li>
+                <li><a href="#" class="newgame action-bttn">new game</a></li>
                 <li id="stats">
                     <h3>game statistics</h3>
                     <p>Games Played: <span id="played">0</span></p>
@@ -37,7 +37,6 @@
                 </li>
                 <li>
                     <a id="resetstats" class="action-bttn">reset your stats</a>
-                    <p  id="reset">danger! reseting your statistics will erase all your game data!</p>
                 </li>
             </ul>
         </nav>
@@ -119,6 +118,15 @@
                 <p>I made this version, because other versions online that you could play for free were either ugly, or had rules I did not like, or both. This version is created with plain vanilla HTML, CSS and JS. I used the GSAP library for animations, but that probably wasn&rsquo;t even necessary. I just wanted to learn how to use it.</p>
             </div>
         </article>
+        <div id="confirm-overlay">
+            <div id="confirm-dialog">
+                <p>danger! reseting your statistics will erase all your game data!</p>
+                <div id="confirm-buttons">
+                    <button id="confirm-ok" class="action-bttn" type="button">OK</button>
+                    <button id="confirm-cancel" class="action-bttn" type="button">Cancel</button>
+                </div>
+            </div>
+        </div>
     </div>
 </body>
 </html>

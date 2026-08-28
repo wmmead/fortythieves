@@ -278,19 +278,6 @@ h1 span:last-of-type {
     font-weight: bold;
 }
 
-#reset {
-    border: 3px dashed red;
-    border-radius: .5rem;
-    padding: 15px;
-    background-color: rgba(255, 255, 255, 0.5);
-    color: #4c4c4c;
-    margin-bottom: 0;
-}
-
-#reset p {
-    margin: 0 0 1em 0;
-}
-
 /* #ali-baba {
     position: absolute;
     top: 30px;
@@ -496,6 +483,46 @@ h1 span:last-of-type {
     border: 3px dashed red;
     padding: 15px;
     border-radius: 5px;
+}
+
+/* Reset-stats confirmation dialog: same box styling as #error-message, plus
+   OK/Cancel buttons. Uses the same fixed, centered overlay approach, but
+   (unlike the error overlay) accepts pointer events since it's interactive. */
+#confirm-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1600;
+    display: none;
+    align-items: center;
+    justify-content: center;
+}
+
+#confirm-overlay.show {
+    display: flex;
+}
+
+#confirm-dialog {
+    background: #fff;
+    border: 3px dashed red;
+    padding: 15px;
+    border-radius: 5px;
+    max-width: 320px;
+    text-align: center;
+}
+
+#confirm-dialog p {
+    margin: 0 0 1em 0;
+    color: #4c4c4c;
+}
+
+#confirm-buttons {
+    display: flex;
+    gap: 10px;
+}
+
+#confirm-buttons .action-bttn {
+    flex: 1;
+    justify-content: center;
 }
 
 .show {
@@ -764,7 +791,7 @@ section {
         justify-content: flex-start;
     }
 
-    #reset {
+    #confirm-dialog {
         max-width: 100%;
     }
 }

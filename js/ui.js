@@ -59,6 +59,8 @@ SECTION: SCREEN MANAGER
 - blockUserInteraction(): Block user interaction with an invisible overlay.
 - unblockUserInteraction(): Remove the interaction blocking overlay.
 - handleDOMAfterMove(card, candidate, fromContainer, targetContainer): Update the DOM after a move, including card placement, selection clearing, and layout adjustments.
+- openConfirmDialog(): Show the reset-stats confirmation dialog (shakes it, like showError).
+- closeConfirmDialog(): Hide the reset-stats confirmation dialog.
 
 ================================================================================
 */
@@ -586,6 +588,21 @@ export function toggleMenu() {
 export function closeMenu() {
     const menu = document.querySelector('#menu');
     menu.className = 'close';
+}
+
+// Reset-stats confirmation dialog: same box styling as showError's message,
+// but persistent (no auto-hide) with OK/Cancel buttons handled by the caller.
+export function openConfirmDialog() {
+    const overlay = document.getElementById('confirm-overlay');
+    const dialog = document.getElementById('confirm-dialog');
+    if (!overlay || !dialog) return;
+    overlay.classList.add('show');
+    shakeElement(dialog);
+}
+
+export function closeConfirmDialog() {
+    const overlay = document.getElementById('confirm-overlay');
+    if (overlay) overlay.classList.remove('show');
 }
 
 // localStorage flag recording that the player has seen the how-to-play instructions.

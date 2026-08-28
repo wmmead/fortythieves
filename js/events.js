@@ -2,7 +2,7 @@ import { moveCardToCandidate, drawCard, refreshDeck, handleCardClick, handleCard
 
 import { startNewGame, selectedCard, setStatsDisplayFlag, setOlenMode, canUndo } from './game.js';
 
-import { clearSelection, updateUndoButtonText, resetGameStatsInfo, updateDeckCounter, toggleMenu, closeMenu, olenModeDisplay, openInstructions, closeInstructions, stackCards, setSectionHeights, stackDiscard, updateCardImageDirectory } from './ui.js';
+import { clearSelection, updateUndoButtonText, resetGameStatsInfo, updateDeckCounter, toggleMenu, closeMenu, olenModeDisplay, openInstructions, closeInstructions, openConfirmDialog, closeConfirmDialog, stackCards, setSectionHeights, stackDiscard, updateCardImageDirectory } from './ui.js';
 
 import { deleteAllSolitaireUserData } from './stats.js';
 
@@ -33,6 +33,8 @@ export function setupEventListeners() {
         const refresh = e.target.closest('#refresh');
         const undoBtn = e.target.closest('#undo');
         const resetStats = e.target.closest('#resetstats');
+        const confirmOk = e.target.closest('#confirm-ok');
+        const confirmCancel = e.target.closest('#confirm-cancel');
         const hamburgermenu = e.target.closest('#hamburgermenu');
         const howToPlay = e.target.closest('#howtoplay');
         const closeInstr = e.target.closest('#closeinstructions');
@@ -50,6 +52,7 @@ export function setupEventListeners() {
         if (undoBtn) {
             e.preventDefault(); // it's an <a href="#">; don't jump to the top of the page
             if (undoBtn.classList.contains('disabled')) return;
+            closeMenu();
             handleUndoRequest();
             updateUndoButtonText();
             return;
@@ -68,6 +71,13 @@ export function setupEventListeners() {
             return;
         }
         if (resetStats) {
+            // opens the confirmation dialog instead of resetting immediately
+            closeMenu();
+            openConfirmDialog();
+            return;
+        }
+        if (confirmOk) {
+            closeConfirmDialog();
             // deletes all data
             deleteAllSolitaireUserData();
             // sets the data in the stats window
@@ -76,6 +86,10 @@ export function setupEventListeners() {
             setStatsDisplayFlag(false);
             // starts a new game
             startNewGame();
+            return;
+        }
+        if (confirmCancel) {
+            closeConfirmDialog();
             return;
         }
         if (candidate && selectedCard) {
@@ -87,9 +101,12 @@ export function setupEventListeners() {
         }
     });
 
-    // Close the instructions popup on Escape
+    // Close the instructions popup / reset-stats confirmation on Escape
     document.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape') closeInstructions();
+        if (e.key === 'Escape') {
+            closeInstructions();
+            closeConfirmDialog();
+        }
         // Cmd+Z (Mac) / Ctrl+Z (Windows) triggers undo, same as the menu button
         if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key.toLowerCase() === 'z') {
             e.preventDefault(); // keep the browser from undoing text edits instead

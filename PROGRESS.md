@@ -231,6 +231,26 @@ Reworked the undo feature: the escalating point cost is gone. Undo is now **free
 
 `node --check` on `js/game.js`, `js/ui.js`, `js/events.js`; grep confirmed no stale `undoCount` / `setUndoCount` / `handleUndoCost` references. Bill tested the undo flow in the browser (an in-session headless verification was cut short by a Chrome-extension disconnect); Bill is testing the keyboard shortcut himself.
 
+## Session: August 28, 2026
+
+Two small menu-behavior fixes, following up on the undo rework from the day before.
+
+### Menu closes automatically on "undo last move"
+
+- `js/events.js` — the `#undo` click handler now calls `closeMenu()` (before `handleUndoRequest()`), matching how "How To Play" already closes the menu on open. Only fires past the existing disabled-button early return, so a click on a greyed-out undo button still leaves the menu open.
+
+### Reset-stats now asks for confirmation via a dialog instead of an inline warning
+
+- Previously, clicking "reset your stats" in the menu deleted all data immediately; a static warning paragraph sat below the button as the only guard. Replaced with a confirm/cancel dialog, styled like the existing error message.
+- `index.html` — removed the inline `<p id="reset">` warning from the menu item. Added `#confirm-overlay` / `#confirm-dialog` (same warning text, plus OK/Cancel buttons) as a new modal alongside the instructions popup.
+- `styles.css` — new `#confirm-overlay` / `#confirm-dialog` / `#confirm-buttons` rules: same box styling as `#error-message` (white background, dashed red border, rounded corners), centered as a fixed overlay (hidden via `display: none` until a `.show` class is added); OK/Cancel reuse the existing `.action-bttn` style. The now-dead `#reset` mobile-width override was retargeted to `#confirm-dialog`.
+- `js/ui.js` — new `openConfirmDialog()` (shows the overlay and shakes the dialog box via the existing `shakeElement()`, the same effect `showError()` uses) and `closeConfirmDialog()`.
+- `js/events.js` — "reset your stats" now closes the menu and calls `openConfirmDialog()` instead of deleting data directly. The deletion sequence (`deleteAllSolitaireUserData()` → `resetGameStatsInfo()` → `setStatsDisplayFlag(false)` → `startNewGame()`) moved to a new `#confirm-ok` handler; `#confirm-cancel` just closes the dialog. Escape now also closes the confirm dialog (alongside its existing instructions-popup behavior).
+
+### Verified
+
+`node --check` on all edited modules. Headless-Chrome probe against a temporary instrumented copy of `index.html` (deleted after): confirmed the overlay is `display: none` by default, opening the menu then clicking "reset your stats" closes the menu and shows the dialog with the correct warning text, Cancel hides it without touching stats, and OK hides it and runs the reset/new-game flow. Bill confirmed both changes working in the browser.
+
 ## Remaining known issues / possible next steps
 
 - **Mobile divider vs. long fan** (minor, cosmetic) — the ≤490px divider is a stable grid border spanning the foundation+tableau rows; a discard fan long enough to overflow that area extends slightly past the bottom of the border. Chosen tradeoff (grid-only, no JS) over the fan-tracking absolute-positioned version. Revisit if it bothers.
