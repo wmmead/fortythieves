@@ -475,12 +475,12 @@ export function showWinScreen( winType ) {
     const tableau = document.querySelector('#tableau-container');
     tableau.className = 'win-container';
     if( winType === 'clear'){
-        message = `Great! You cleared the board, but you didn't get all the points.`;
+        message = `<img src="images/club-diamond-characters.png" alt="club and diamond" class="thieves"><h2>You built the foundations,<br>but the thieves stole some<br>of your points</h2><img src="images/spade-heart-characters.png" alt="spade and heart" class="thieves">`;
     } else {
-        message = `Congratulations! You won and scored all the possible points!`;
+        message = `<img src="images/club-diamond-characters.png" alt="club and diamond" class="thieves"><h2>Congratulations!<br>You won and scored all<br>the possible points!</h2><img src="images/spade-heart-characters.png" alt="spade and heart" class="thieves">`;
     }
     tableau.innerHTML = `<div id="win" class="pop">
-                <h2>${message}</h2>
+                ${message}
                 </div>`;
     // On small screens the header stats graphic is hidden, so show it in the win screen instead
     if (window.matchMedia('(max-width: 660px)').matches) {
