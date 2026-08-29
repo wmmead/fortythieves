@@ -293,6 +293,24 @@ Bill had already added the `#intro` overlay markup and its centered-card styling
 
 **Environment note:** the `claude-in-chrome` browser extension was not connected this session (`tabs_context_mcp` reported it not installed/running). Fell back to a small Node script driving headless Chrome directly over the DevTools Protocol (`--remote-debugging-port`, `Page.navigate` / `Input.dispatchMouseEvent` / `Runtime.evaluate` / `Page.captureScreenshot` over the raw `chrome-remote-interface`-style WebSocket, no library). Reusable pattern if the extension is unavailable again.
 
+## Session: August 29, 2026 (later) — background music
+
+Bill added an `audio/` folder (70 mp3s) at the project root, plus a temporary `meaddesign/` folder (his personal site, with its own nested `.git` — not touched, just read for reference) containing a working cascading-music engine (`meaddesign/audio.js`) to use as a model. Wanted the same mechanic here: one random track plays, and once it's a third of the way through, another random track fades in alongside it, cascading indefinitely — but with no player UI (no mute/skip controls, unlike meaddesign) and starting with **two** tracks together instead of one.
+
+### Track list
+
+- New `js/musicTracks.js` — exports `MUSIC_TRACKS`, a plain array of paths (`'audio/07-Fluss.mp3'`, etc.), meant to be Bill's single edit point for adding/removing tracks going forward. Per Bill's choice, seeded with the same 59-track curated subset the meaddesign model uses (deliberately excluding the five `28-*`, five `29-*`, and `01-wholepiece.mp3` files that exist in `audio/` but weren't in the model's list — his call to leave those out for now).
+
+### Engine
+
+- New `js/music.js` — ported from `meaddesign/audio.js`, stripped of everything UI-related (audioMotion visualizer, "Playing:" label, mute/remix buttons, parental-gate checkbox): `pickRandomTrack()` (random pick, excluding what's already playing), `playTrack()` (fades volume 0→1 over 5s via GSAP, wires a `timeupdate` listener that fires `startNextTrack()` once `currentTime / duration >= 1/3`), and the same concurrency watchdog as the model (caps at 3 concurrent tracks, restarts the cascade if it ever drops to zero — checked every 60s).
+- Exported `startMusic()`: guarded to run once, calls `startNextTrack()` twice back-to-back so two tracks begin together, then the normal cascade takes over.
+- `js/main.js` — `startMusic()` is called first thing inside the `#play-game` click handler (before `closeIntro()`/`initGame()`), so playback starts as close to the raw user gesture as possible, same reasoning as the `full-deal.mp3` autoplay fix from earlier this session. Music runs continuously for the rest of the session — it isn't tied to individual games, so `startNewGame()` doesn't touch it.
+
+### Verified
+
+`node --check` on all three files. Headless Chrome over the DevTools Protocol again (see note above), with `window.Audio` monkey-patched (via `Page.addScriptToEvaluateOnNewDocument`) to record every `Audio` instance constructed: confirmed two music tracks start together on the "Play Game" click, both actually playing (`paused: false`, `currentTime` advancing) and fading in (`volume` climbing 0 → ~0.29 → ~0.94 → 1 over ~5s, matching `FADE_IN_DURATION`). Cascade trigger verified without waiting out a real multi-minute track: faked one track's `duration` down to 3s (its real, already-advancing `currentTime` did the rest), and confirmed a third track was constructed and began fading in once it crossed the 1/3 mark. Zero console errors/exceptions throughout. (Note: seeking a track's `currentTime` ahead didn't work against the local `python3 -m http.server` — it doesn't support HTTP Range requests — hence testing the trigger via a faked `duration` instead of a seek.)
+
 ## Remaining known issues / possible next steps
 
 - **Mobile divider vs. long fan** (minor, cosmetic) — the ≤490px divider is a stable grid border spanning the foundation+tableau rows; a discard fan long enough to overflow that area extends slightly past the bottom of the border. Chosen tradeoff (grid-only, no JS) over the fan-tracking absolute-positioned version. Revisit if it bothers.
