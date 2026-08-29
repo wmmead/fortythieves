@@ -1,7 +1,7 @@
 // Import the game initialization function from game.js
 import { initGame } from './game.js';
 import { closeIntro } from './ui.js';
-import { startMusic } from './music.js';
+import { startMusic, initVolumeSlider } from './music.js';
 import { initSfxToggle } from './audio.js';
 
 // Wait for the DOM to be fully loaded, then wait for the player to click
@@ -10,6 +10,7 @@ import { initSfxToggle } from './audio.js';
 // means they play in response to a user gesture instead of being autoplay-blocked.
 window.addEventListener('DOMContentLoaded', () => {
     initSfxToggle(); // live immediately — the intro switch is usable before "Play Game" is clicked
+    initVolumeSlider(); // same for the volume slider
     const playButton = document.getElementById('play-game');
     if (!playButton) return;
     playButton.addEventListener('click', async () => {

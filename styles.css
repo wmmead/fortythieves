@@ -272,7 +272,7 @@ h1 span:last-of-type {
 }
 
 #menu.close {
-    top: -580px;
+    top: -600px;
 }
 
 #menu ul {
@@ -391,6 +391,69 @@ h1 span:last-of-type {
 
 /* Keyboard navigation accessibility outline */
 .switch input:focus-visible + .slider {
+    outline: 2px solid #2196F3;
+    outline-offset: 2px;
+}
+
+.music-volume {
+    /* display: flex;
+    align-items: center; */
+    gap: 15px;
+    padding: 0 20px;
+}
+
+.music-volume p {
+    margin-bottom: 0;
+}
+
+/* Music volume slider (native <input type="range">). Adjust the control dot's
+   color/size by editing these two custom properties. */
+.volume-slider {
+    --volume-thumb-size: 28px;
+    --volume-thumb-color: rgba(86, 50, 165, 0.8);
+    -webkit-appearance: none;
+    appearance: none;
+    height: 8px;
+    background: transparent;
+    cursor: pointer;
+    width: 100%;
+    margin-bottom: 10px;
+}
+
+.volume-slider::-webkit-slider-runnable-track {
+    height: 8px;
+    border-radius: 4px;
+    background: lightgray;
+}
+
+.volume-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: var(--volume-thumb-size);
+    height: var(--volume-thumb-size);
+    margin-top: calc((8px - var(--volume-thumb-size)) / 2);
+    border-radius: 50%;
+    background: var(--volume-thumb-color);
+    border: 2px solid white;
+    cursor: pointer;
+}
+
+.volume-slider::-moz-range-track {
+    height: 8px;
+    border-radius: 4px;
+    background: lightgray;
+}
+
+.volume-slider::-moz-range-thumb {
+    width: var(--volume-thumb-size);
+    height: var(--volume-thumb-size);
+    border-radius: 50%;
+    background: var(--volume-thumb-color);
+    border: 2px solid white;
+    cursor: pointer;
+}
+
+.volume-slider:focus-visible {
     outline: 2px solid #2196F3;
     outline-offset: 2px;
 }

@@ -323,6 +323,38 @@ Bill added two identical toggle switches (already fully styled in `styles.css` �
 
 `node --check` on `js/audio.js` and `js/main.js`. Headless Chrome over the DevTools Protocol (see the environment note earlier in today's log): confirmed both switches start ON by default, toggling the intro switch off syncs the menu switch and writes `localStorage.sfxEnabled = 'false'`, drawing a card with it off produces zero `sndfx/` `play()` calls (instrumented `Audio.prototype.play`), turning it back on via the *menu* switch syncs the intro switch and immediately makes `card-sound.mp3` play again on the next draw, and the ON preference survives a full page reload. Zero console errors throughout.
 
+## Session: August 30, 2026 — music volume slider
+
+Follow-up to the sound-effects switch: Bill added a native `<input type="range">` under each sound-effects switch (intro overlay and menu) and wanted it wired the same way — synced between the two, persisted, defaulting to 75% — plus one extra behavior: dropping to 0 should fully stop the music (not just mute it), to avoid spending bandwidth/memory on unheard audio. Also wanted the slider's control dot to be a properly touch-sized circle, styleable from the stylesheet.
+
+### `js/music.js`
+
+- New volume state: `musicVolume` (0–1), loaded from `localStorage` (`musicVolume` key) defaulting to `0.75` if unset or unparseable.
+- `playTrack()`'s fade-in now targets `musicVolume` instead of a hardcoded `1`.
+- `startNextTrack()` — the single choke point every track start goes through (cascade trigger, watchdog restart, `startMusic()`) — now no-ops whenever `musicVolume <= 0`, so muting silences the whole engine without needing a volume check at each call site.
+- New `setMusicVolume(volume)`: clamps, persists, and re-targets every currently-playing track's volume via a quick 0.3s GSAP tween. Dropping to 0 calls a new `stopAllTracks()` instead — kills any in-flight tweens, `pause()`s and fully discards every `Audio` element (not just silences it). Coming back up from 0 (if the game has already started) restarts the cascade the same way it began: two tracks together.
+- New `initVolumeSlider()`, wired the same way as `initSfxToggle()`: sets both `#music-volume-intro`/`#music-volume-menu` sliders to the stored value on load, and an `input` listener on each updates the volume and syncs the other slider's value.
+- `js/main.js` — calls `initVolumeSlider()` alongside `initSfxToggle()` on `DOMContentLoaded` (not gated behind "Play Game," so the intro slider is live immediately, though no audio actually plays until `startMusic()` runs on that click).
+
+### Styling (`styles.css`)
+
+- New `.music-volume` row (mirrors `.sndfx-switch`'s flex layout) and `.volume-slider` rules: a native range input restyled cross-browser (`-webkit-appearance: none` + explicit `::-webkit-slider-runnable-track`/`::-webkit-slider-thumb`, plus `::-moz-range-track`/`::-moz-range-thumb`) into a flat pill track with a circular thumb. Thumb size/color are CSS custom properties on `.volume-slider` (`--volume-thumb-size: 28px`, `--volume-thumb-color: rgba(86, 50, 165, 0.8)`, matching the sound-effects switch's accent purple) — Bill can tweak either without touching the rest of the rule. 28px comfortably exceeds the sound-effects switch's 26px knob for a larger touch target.
+- `index.html` — added `<div class="music-volume">` (label + `<input type="range" id="music-volume-intro|menu" min="0" max="100" value="75">`) directly under each sound-effects switch, in both the intro overlay and the menu `<li>`.
+
+### Verified
+
+`node --check` on `js/music.js` and `js/main.js`. Headless Chrome over the DevTools Protocol (`Audio` constructor instrumented to track every `audio/`-sourced instance): confirmed both sliders start at 75 with no stored preference; moving the intro slider to 30 synced the menu slider and wrote `localStorage.musicVolume = '0.3'`; clicking "Play Game" started two tracks fading toward 0.3 (not 1) as expected; dragging the *menu* slider to 0 synced the intro slider, wrote `'0'`, and actually paused both `Audio` elements (not just silenced); no new track was created over the following 2s while muted; raising the slider back to 50 immediately created and started two fresh tracks; and the 50% preference survived a full page reload on both sliders. Zero console errors. Also confirmed visually via screenshot: a properly-sized purple circular thumb sitting under the sound-effects switch in the intro card.
+
+## Session: August 30, 2026 (later) — fix: music not always restarting after mute
+
+Bill reported that dragging the volume slider to 0 and back up didn't always bring the music back. Root cause: `setMusicVolume(0)` was calling `stopAllTracks()`, which fully discarded the `Audio` elements (`pause()` + drop the references). Coming back up from 0 then created **brand-new** `Audio` elements and called `.play()` on them — and a fresh element's first `.play()` isn't as reliably granted by the browser's autoplay policy as resuming one that already played successfully earlier in the session. That made the restart intermittent rather than reliable.
+
+- `js/music.js` — `stopAllTracks()` replaced with `pauseAllTracks()` (just `gsap.killTweensOf` + `audio.pause()`, keeping the elements and their `playingTracks`/`activeAudioElements` slots intact) and a new `resumeAllTracks(targetVolume)` (`audio.play()` on the same paused elements + fades to the new volume). `setMusicVolume()` now pauses in place at 0 and resumes those same elements coming back up — only falling back to starting a fresh two-track cascade if there's nothing to resume (volume was muted before "Play Game" was ever clicked, so no tracks exist yet).
+
+### Verified
+
+`node --check`. Headless Chrome over the DevTools Protocol, `Audio` constructor tagged with a creation counter + stable id: ran 5 consecutive mute/unmute cycles via the menu slider — every cycle paused and then resumed the *same two* `Audio` elements (creation count stayed at 2 throughout, ids unchanged) and landed at the correct target volume each time, with zero console errors.
+
 ## Remaining known issues / possible next steps
 
 - **Mobile divider vs. long fan** (minor, cosmetic) — the ≤490px divider is a stable grid border spanning the foundation+tableau rows; a discard fan long enough to overflow that area extends slightly past the bottom of the border. Chosen tradeoff (grid-only, no JS) over the fan-tracking absolute-positioned version. Revisit if it bothers.
