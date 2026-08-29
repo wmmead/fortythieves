@@ -311,6 +311,18 @@ Bill added an `audio/` folder (70 mp3s) at the project root, plus a temporary `m
 
 `node --check` on all three files. Headless Chrome over the DevTools Protocol again (see note above), with `window.Audio` monkey-patched (via `Page.addScriptToEvaluateOnNewDocument`) to record every `Audio` instance constructed: confirmed two music tracks start together on the "Play Game" click, both actually playing (`paused: false`, `currentTime` advancing) and fading in (`volume` climbing 0 → ~0.29 → ~0.94 → 1 over ~5s, matching `FADE_IN_DURATION`). Cascade trigger verified without waiting out a real multi-minute track: faked one track's `duration` down to 3s (its real, already-advancing `currentTime` did the rest), and confirmed a third track was constructed and began fading in once it crossed the 1/3 mark. Zero console errors/exceptions throughout. (Note: seeking a track's `currentTime` ahead didn't work against the local `python3 -m http.server` — it doesn't support HTTP Range requests — hence testing the trigger via a faked `duration` instead of a seek.)
 
+## Session: August 29, 2026 (later still) — sound effects on/off switch
+
+Bill added two identical toggle switches (already fully styled in `styles.css` — a checkbox-driven pill/slider showing "ON"/"OFF") to the markup himself: one in the `#intro` overlay, one in the menu. Wired them up.
+
+- `index.html` — gave the two otherwise-identical checkboxes distinguishing ids: `#sfx-toggle-intro` and `#sfx-toggle-menu`.
+- `js/audio.js` — new `sfxEnabled` state, persisted via `localStorage` (`sfxEnabled` key; unset reads as `true` so existing players keep hearing sound effects by default). `playSound()` now no-ops when disabled — a single choke point, so every current and future `play*Sound()` export is covered automatically. New `initSfxToggle()` sets both checkboxes to the stored preference on load and wires a `change` listener on each that updates the state/localStorage and syncs the other checkbox's `checked` to match, so either switch always reflects the same one shared setting.
+- `js/main.js` — calls `initSfxToggle()` first thing on `DOMContentLoaded` (not gated behind "Play Game," since the intro switch is visible and usable before that click).
+
+### Verified
+
+`node --check` on `js/audio.js` and `js/main.js`. Headless Chrome over the DevTools Protocol (see the environment note earlier in today's log): confirmed both switches start ON by default, toggling the intro switch off syncs the menu switch and writes `localStorage.sfxEnabled = 'false'`, drawing a card with it off produces zero `sndfx/` `play()` calls (instrumented `Audio.prototype.play`), turning it back on via the *menu* switch syncs the intro switch and immediately makes `card-sound.mp3` play again on the next draw, and the ON preference survives a full page reload. Zero console errors throughout.
+
 ## Remaining known issues / possible next steps
 
 - **Mobile divider vs. long fan** (minor, cosmetic) — the ≤490px divider is a stable grid border spanning the foundation+tableau rows; a discard fan long enough to overflow that area extends slightly past the bottom of the border. Chosen tradeoff (grid-only, no JS) over the fan-tracking absolute-positioned version. Revisit if it bothers.
