@@ -3,6 +3,7 @@ import { stackCards, setSectionHeights, createCardElement, blockUserInteraction,
 import { getCardMoveDelta, animateCardMove, animateMoveFrom } from './animation.js';
 import { setupEventListeners } from './events.js';
 import { createNewGameRecord, updateCurrentGameStats, deleteZeroMoveRecords, getGameStatistics } from './stats.js';
+import { playFullDealSound, playUndoSound } from './audio.js';
 
 /*
 ================================================================================
@@ -209,6 +210,7 @@ export function setDeckDepleted(value) {
 
 // Deal 40 cards to the tableau sections, updating UI after each card (with animation delay)
 export async function distributeCards(deck) {
+    playFullDealSound();
     const sections = document.querySelectorAll('section');
     const numSections = sections.length;
     for (let i = 0; i < 40; i++) {
@@ -344,6 +346,8 @@ export function undoBoardMove() {
         deductFoundationScore(card);
     }
 
+    playUndoSound();
+
     if (fromContainer.id === 'discard') {
         // Undo back into the discard fan: place the card in its real slot first,
         // then fly it in from its old spot so it lands exactly there (no snap).
@@ -385,6 +389,7 @@ export function undoDiscardMove() {
 
     if (!consumeUndo()) return; // Only proceed if the free undo was available
     handleMoveHistory('undo');
+    playUndoSound();
     // Remove card from discard and put it back on top of the deck (data only, not animated)
     discard.removeChild(card);
     shuffledDeck.unshift(lastMove.cardId); // Put card string back on top of deck

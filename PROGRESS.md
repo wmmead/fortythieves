@@ -251,8 +251,34 @@ Two small menu-behavior fixes, following up on the undo rework from the day befo
 
 `node --check` on all edited modules. Headless-Chrome probe against a temporary instrumented copy of `index.html` (deleted after): confirmed the overlay is `display: none` by default, opening the menu then clicking "reset your stats" closes the menu and shows the dialog with the correct warning text, Cancel hides it without touching stats, and OK hides it and runs the reset/new-game flow. Bill confirmed both changes working in the browser.
 
+## Session: August 28, 2026 (evening) — sound effects
+
+Added the first sound effects to the game, plus Bill's own follow-on UI/graphics polish.
+
+### New `js/audio.js` module
+
+- New file `js/audio.js` — central place for all game sound effects going forward. Holds a `sounds` map of `Audio` objects (one per effect, loaded from the new `sndfx/` folder) and small `play*()` wrapper exports. `playSound()` clones the `Audio` element before calling `.play()` so rapid/overlapping triggers (e.g. cards animating in quick succession) don't cut each other off, and swallows the rejected promise so a browser autoplay block doesn't throw.
+- `sndfx/` (new, untracked folder) — `full-deal.mp3`, `card-sound.mp3`, `undo.mp3`.
+
+### Wiring
+
+- **`full-deal.mp3`** — plays once via `playFullDealSound()` at the top of `distributeCards()` in `js/game.js`, which runs for both the initial deal (`initGame()`) and `startNewGame()`.
+- **`card-sound.mp3`** — plays via `playCardMoveSound()` on every regular card move: drawing from the deck (`drawCard()` in `js/gameActions.js`) and moving a card onto a tableau/foundation target (`moveCardToCandidate()`, same file — covers both click and double-click paths).
+- **`undo.mp3`** — plays via `playUndoSound()` on both undo paths in `js/game.js`: `undoBoardMove()` (undoing a tableau/foundation move) and `undoDiscardMove()` (un-drawing a card back to the deck). Originally wired to `card-sound.mp3` like other moves, then swapped to its own dedicated sound file per Bill's request.
+
+### Known limitation (deliberate, deferred)
+
+- Chrome (and other browsers) will likely block `full-deal.mp3` from playing on the very first page load, before any user interaction with the page — standard autoplay policy, not a bug. Bill is aware and wants to address it in a future session (e.g. gate the first deal's sound behind the first click, or accept the silent-first-load and rely on `new game` triggering it fine thereafter).
+
+### Bill's own changes (not done by Claude, noted for context)
+
+Committed separately as `8c2e214` "minor ui design updates":
+- Win screen (`showWinScreen()` in `js/ui.js`) now shows a decorative image on each side of the message (`images/club-diamond-characters.png` / `images/spade-heart-characters.png`, both new) instead of plain text-only `<h2>`, with matching `styles.css` layout changes (`#win` switched from grid to flex with a gap, centered `<h2>` text, thieves images hidden on the ≤660px mobile win layout).
+- Menu/instructions background image swapped from `images/background4.jpg` to a new `images/background7.jpg` (menu panel, hamburger icon, and instructions popup all updated together).
+
 ## Remaining known issues / possible next steps
 
 - **Mobile divider vs. long fan** (minor, cosmetic) — the ≤490px divider is a stable grid border spanning the foundation+tableau rows; a discard fan long enough to overflow that area extends slightly past the bottom of the border. Chosen tradeoff (grid-only, no JS) over the fan-tracking absolute-positioned version. Revisit if it bothers.
 - **Foundation-move affordability can strand a game** (see August 26 session) — narrow edge case, matches the deck-refresh cost design (the undo cost it also mirrored was removed August 27); revisit only if it proves annoying in practice.
+- **First-load autoplay block on `full-deal.mp3`** (see August 28 evening session) — the sound for the very first deal on page load will likely be silently blocked by the browser until the user interacts with the page. Deferred; more sound effects are planned, so revisit alongside those.
 - No other tracked items. (Done June 23: mobile discard layout, discard zone styling, undo-of-a-discard-play jump.)
