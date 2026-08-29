@@ -635,6 +635,27 @@ export function maybeAutoShowInstructions() {
     setTimeout(openInstructions, 2000);
 }
 
+// Fades out the pre-game intro overlay (.fadeout, 500ms) and reveals the game
+// container once the fade finishes. Resolves so the caller can then deal the
+// tableau — the deal is gated behind this user click so the first sound effect
+// isn't blocked by the browser's autoplay policy.
+export function closeIntro() {
+    return new Promise((resolve) => {
+        const intro = document.getElementById('intro');
+        const container = document.getElementById('container');
+        if (!intro || !container) {
+            resolve();
+            return;
+        }
+        intro.addEventListener('transitionend', () => {
+            intro.style.display = 'none';
+            container.classList.remove('pre-game');
+            resolve();
+        }, { once: true });
+        intro.classList.add('fadeout');
+    });
+}
+
 export function olenModeDisplay(){
     if(olenMode){
         document.querySelector('#olenmode').textContent = "Olen mode";

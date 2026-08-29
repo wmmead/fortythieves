@@ -51,6 +51,40 @@ h1 span:last-of-type {
     color: #c40c02;
 }
 
+#intro {
+    width: 320px;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    z-index: 1000;
+    transform: translate(-50%, -50%);
+    background-image: url(images/background7.jpg);
+    padding: 20px;
+    border-radius: 15px;
+    border: 5px solid #cac4b7;
+}
+
+/* Faded out on "Play Game" (js/ui.js closeIntro()); .fadeout below supplies the
+   500ms opacity transition, matching the fade-then-hide pattern used by #instructions. */
+#container.pre-game {
+    display: none;
+}
+
+#intro-top {
+    width: 280px;
+    height: 280px;
+    background-image: url(images/introBG.png);
+    background-size: cover;
+    position: relative;
+}
+
+#intro-top h1 {
+    position: absolute;
+    top: 135px;
+    left: 140px;
+    font-size: 32px;
+}
+
 #olenmode {
     font-family: "Jomhuria", serif;
     font-size: 2.5em;

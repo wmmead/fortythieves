@@ -276,9 +276,25 @@ Committed separately as `8c2e214` "minor ui design updates":
 - Win screen (`showWinScreen()` in `js/ui.js`) now shows a decorative image on each side of the message (`images/club-diamond-characters.png` / `images/spade-heart-characters.png`, both new) instead of plain text-only `<h2>`, with matching `styles.css` layout changes (`#win` switched from grid to flex with a gap, centered `<h2>` text, thieves images hidden on the ≤660px mobile win layout).
 - Menu/instructions background image swapped from `images/background4.jpg` to a new `images/background7.jpg` (menu panel, hamburger icon, and instructions popup all updated together).
 
+## Session: August 29, 2026 — intro overlay / gate the deal behind "Play Game"
+
+Bill had already added the `#intro` overlay markup and its centered-card styling (`#intro`, `#intro-top`, the `images/introBG.png` art) on his own — a "forty thieves" title card with a "Play Game" button, meant to show before the game board. It wasn't wired up yet: `#container` was still visible immediately and `js/main.js` still dealt the deck straight from `DOMContentLoaded`, same as before. This is also the fix for the **first-load autoplay block** noted back in the Aug 28 evening session — gating the deal behind a real click means `full-deal.mp3` now plays inside a user-gesture context instead of on page load.
+
+### Wiring
+
+- `index.html` — `#container` now starts with `class="pre-game"`.
+- `styles.css` — new `#container.pre-game { display: none; }`. Reused the existing (previously-unused) `.fadeout` utility class (`opacity: 0; transition: all 500ms ease-in;`) for the intro's fade — it already matched the requested 500ms timing exactly.
+- `js/ui.js` — new `closeIntro()`, following the same fade-then-hide-on-`transitionend` pattern as the existing `closeInstructions()`: adds `.fadeout` to `#intro`, and once the transition ends, sets `#intro` to `display: none` and strips `.pre-game` off `#container` to reveal the board. Returns a Promise so the caller can sequence the deal after it.
+- `js/main.js` — rewired: `DOMContentLoaded` no longer calls `initGame()` directly. It now attaches a one-time click listener to `#play-game` that awaits `closeIntro()` and then `initGame()`, which deals the tableau as before.
+
+### Verified
+
+`node --check` on `js/main.js` and `js/ui.js`. Headless Chrome driven via the DevTools Protocol directly (no puppeteer, scripted click dispatch + `Runtime.evaluate` state checks + screenshots — the Chrome extension wasn't connected in this environment, see note below): confirmed pre-click state (`#intro` visible/opaque, `#container` `display: none`, 0 cards dealt), that clicking "Play Game" adds `.fadeout` and reveals `#container`, and that the deal then proceeds through all 40 cards with zero console errors/exceptions. Screenshots confirmed the visual result matches: centered intro card over the background before the click, full board dealing after.
+
+**Environment note:** the `claude-in-chrome` browser extension was not connected this session (`tabs_context_mcp` reported it not installed/running). Fell back to a small Node script driving headless Chrome directly over the DevTools Protocol (`--remote-debugging-port`, `Page.navigate` / `Input.dispatchMouseEvent` / `Runtime.evaluate` / `Page.captureScreenshot` over the raw `chrome-remote-interface`-style WebSocket, no library). Reusable pattern if the extension is unavailable again.
+
 ## Remaining known issues / possible next steps
 
 - **Mobile divider vs. long fan** (minor, cosmetic) — the ≤490px divider is a stable grid border spanning the foundation+tableau rows; a discard fan long enough to overflow that area extends slightly past the bottom of the border. Chosen tradeoff (grid-only, no JS) over the fan-tracking absolute-positioned version. Revisit if it bothers.
 - **Foundation-move affordability can strand a game** (see August 26 session) — narrow edge case, matches the deck-refresh cost design (the undo cost it also mirrored was removed August 27); revisit only if it proves annoying in practice.
-- **First-load autoplay block on `full-deal.mp3`** (see August 28 evening session) — the sound for the very first deal on page load will likely be silently blocked by the browser until the user interacts with the page. Deferred; more sound effects are planned, so revisit alongside those.
-- No other tracked items. (Done June 23: mobile discard layout, discard zone styling, undo-of-a-discard-play jump.)
+- No other tracked items. (Done June 23: mobile discard layout, discard zone styling, undo-of-a-discard-play jump. Done August 29: first-load autoplay block on `full-deal.mp3`, fixed by gating the initial deal behind the new intro overlay's "Play Game" click.)
