@@ -355,6 +355,17 @@ Bill reported that dragging the volume slider to 0 and back up didn't always bri
 
 `node --check`. Headless Chrome over the DevTools Protocol, `Audio` constructor tagged with a creation counter + stable id: ran 5 consecutive mute/unmute cycles via the menu slider — every cycle paused and then resumed the *same two* `Audio` elements (creation count stayed at 2 throughout, ids unchanged) and landed at the correct target volume each time, with zero console errors.
 
+## Session: August 30, 2026 (later still) — fix: sound effects feeling laggy on iPad
+
+Bill noticed the card sound effect felt like it played "just a split second late" on iPad, not snappy. The trigger call itself was already correctly placed before the animation starts (checked `js/gameActions.js` — `playCardMoveSound()` fires before `animateCardMove()`/`animateDiscardCard()`, not after). The actual cause: `js/audio.js` played every effect by `cloneNode(true)`-ing an `<audio>` element and calling `.play()` on the fresh clone. `HTMLMediaElement.play()` has to spin up a new playback pipeline on every call, and that startup latency is much more noticeable on iOS/iPadOS than desktop — especially for `card-sound.mp3`, which is only ~33ms long, so a 100-300ms pipeline delay is a large fraction of (or longer than) the sound itself.
+
+- `js/audio.js` — rewritten to use the Web Audio API instead of `<audio>` elements. Every sound file is fetched and decoded into an in-memory `AudioBuffer` once, up front (`loadBuffer()`, kicked off immediately at module load — decoding doesn't need a user gesture). Each `play*Sound()` call now just schedules that already-decoded buffer on a fresh, disposable `AudioBufferSourceNode` (`playBuffer()`) — no per-play pipeline spin-up, so it starts with essentially no latency. The `sfxEnabled`/`initSfxToggle()` on/off logic is unchanged, just gating `playBuffer()` instead of the old `playSound()`.
+- New `unlockAudio()` — iOS (and Chrome, to a lesser degree) create the `AudioContext` in a `suspended` state until a user gesture resumes it, same reasoning as the existing music/deal-sound autoplay gating. `js/main.js` calls it first thing in the `#play-game` click handler, alongside `startMusic()`.
+
+### Verified
+
+`node --check`. Headless Chrome over the DevTools Protocol (`AudioContext.prototype.createBufferSource` instrumented to timestamp every `.start()` call): confirmed a card draw schedules exactly one `AudioBufferSourceNode.start()` within ~3ms of the click event, and that toggling sound effects off correctly suppresses it entirely (0 calls). Zero console errors across a full deal, draw, and toggle. **Not independently verified:** the actual felt-latency improvement on iPad itself — that's a browser/OS media-pipeline behavior difference that can't be measured from this desktop headless-Chrome harness. Worth a quick check on Bill's iPad to confirm it feels snappier now.
+
 ## Remaining known issues / possible next steps
 
 - **Mobile divider vs. long fan** (minor, cosmetic) — the ≤490px divider is a stable grid border spanning the foundation+tableau rows; a discard fan long enough to overflow that area extends slightly past the bottom of the border. Chosen tradeoff (grid-only, no JS) over the fan-tracking absolute-positioned version. Revisit if it bothers.
