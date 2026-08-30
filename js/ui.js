@@ -2,6 +2,7 @@ import { shuffledDeck, setSelectedCard, isValidTableauMove, isValidFoundationMov
 import { shakeElement } from './animation.js';
 import { getGameStatistics } from './stats.js';
 import { renderStatsGraph } from './statsGraph.js';
+import { playErrorSound } from './audio.js';
 /* global gsap */ // gsap is loaded as a global via the <script> tag in index.html
 
 /*
@@ -386,6 +387,7 @@ export function showError(message){
     const messageContainer = document.querySelector('#error-message');
     messageContainer.textContent = message;
     messageContainer.className = 'show';
+    playErrorSound();
     shakeElement(messageContainer);
     setTimeout(function(){
         hideErrorMessage(messageContainer);
@@ -597,6 +599,7 @@ export function openConfirmDialog() {
     const dialog = document.getElementById('confirm-dialog');
     if (!overlay || !dialog) return;
     overlay.classList.add('show');
+    playErrorSound();
     shakeElement(dialog);
 }
 

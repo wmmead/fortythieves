@@ -4,7 +4,7 @@ import { handleDOMAfterMove, clearSelection, deselectCards, createCardElement, p
 import { getShuffledDeck, setSelectedCard, setDeckDepleted, getNextCardFromDeck, handleMoveHistory, recordMove, recordDrawMove, handleDeckDepletion, refillDeckFromDiscard, handleScoringAndWin, undoBoardMove, undoDiscardMove, score, getCurrentScore, setScore,  getRefreshCost, setStatsDisplayFlag, olenMode } from './game.js';
 // Import animations
 import { animateCardMove, animateDiscardCard } from './animation.js';
-import { playCardMoveSound } from './audio.js';
+import { playSingleTapSound, playDoubleTapSound, playCardDownSound } from './audio.js';
 /* global gsap */ // gsap is loaded as a global via the <script> tag in index.html
 
 /*
@@ -89,6 +89,7 @@ export function handleCardClick(card) {
     // Passed all checks; now select this card
     card.classList.add('selected');
     setSelectedCard(card);
+    playSingleTapSound();
     gsap.to(card, { scale: 1.05, duration: 0.2, ease: "power1.out" });
     showCandidateTargets(card);
 }
@@ -142,7 +143,6 @@ export function moveCardToCandidate(candidate, card) {
     }
 
     card.dataset.moving = 'true';
-    playCardMoveSound();
     const selectedRect = card.getBoundingClientRect();
     const candidateRect = candidate.getBoundingClientRect();
     const deltaX = candidateRect.left - selectedRect.left;
@@ -153,6 +153,7 @@ export function moveCardToCandidate(candidate, card) {
         handleDOMAfterMove(card, candidate, fromContainer, targetContainer);
         handleScoringAndWin(card, fromContainer, targetContainer);
         recordMove(card, fromContainer, targetContainer);
+        playCardDownSound();
     });
     return true;
 }
@@ -175,6 +176,7 @@ export function handleCardDoubleClick(card) {
         }
     }
     // Passed all checks; now select this card
+    playDoubleTapSound();
     const sourceElement = card.parentElement;
     // Priority 1: Foundation
     for (const foundation of foundations) {
@@ -243,7 +245,7 @@ export function drawCard() {
     const card = createCardElement(suit, value);
     placeCardInDiscard(card);
     recordDrawMove(suit + value);
-    playCardMoveSound();
+    playCardDownSound();
     animateDiscardCard(card);
     updateDeckCounter();
     const theShuffledDeck = getShuffledDeck();

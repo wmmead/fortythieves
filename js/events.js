@@ -6,6 +6,8 @@ import { clearSelection, updateUndoButtonText, resetGameStatsInfo, updateDeckCou
 
 import { deleteAllSolitaireUserData } from './stats.js';
 
+import { playNewGameSound } from './audio.js';
+
 
 export function setupEventListeners() {
     // Debounce so the full restack only runs once the resize settles,
@@ -95,6 +97,10 @@ export function setupEventListeners() {
         if (candidate && selectedCard) {
             moveCardToCandidate(candidate, selectedCard);
         } else if (card && !card.classList.contains('temp') && !card.classList.contains('candidate')) {
+            // A double-click fires two 'click' events (detail 1, then 2) before
+            // 'dblclick' — skip the second one so it doesn't also select/play
+            // the single-tap sound right on top of the double-click handling.
+            if (e.detail > 1) return;
             handleCardClick(card);
         } else {
             clearSelection();
@@ -127,6 +133,7 @@ export function setupEventListeners() {
     document.querySelectorAll('.newgame').forEach(btn => {
         btn.addEventListener('click', (e) => {
             e.preventDefault(); // it's an <a href="#">; don't jump to the top of the page
+            playNewGameSound();
             startNewGame();
         });
     });

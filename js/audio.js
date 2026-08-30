@@ -12,8 +12,14 @@
 
 const SOUND_FILES = {
     fullDeal: 'sndfx/full-deal.mp3',
-    cardMove: 'sndfx/card-sound.mp3',
+    singleTap: 'sndfx/single-tap.mp3',
+    doubleTap: 'sndfx/double-tap.mp3',
+    cardDown: 'sndfx/card-down.mp3',
     undo: 'sndfx/undo.mp3',
+    error: 'sndfx/error.mp3',
+    newGame: 'sndfx/new-game.mp3',
+    win: 'sndfx/win.mp3',
+    finishNoWin: 'sndfx/finish-no-win.mp3',
 };
 
 let audioContext = null;
@@ -103,10 +109,34 @@ export function playFullDealSound() {
     playBuffer('fullDeal');
 }
 
-export function playCardMoveSound() {
-    playBuffer('cardMove');
+export function playSingleTapSound() {
+    playBuffer('singleTap');
+}
+
+export function playDoubleTapSound() {
+    playBuffer('doubleTap');
+}
+
+export function playCardDownSound() {
+    playBuffer('cardDown');
 }
 
 export function playUndoSound() {
     playBuffer('undo');
+}
+
+export function playErrorSound() {
+    playBuffer('error');
+}
+
+export function playNewGameSound() {
+    playBuffer('newGame');
+}
+
+export function playWinSound() {
+    playBuffer('win');
+}
+
+export function playFinishNoWinSound() {
+    playBuffer('finishNoWin');
 }

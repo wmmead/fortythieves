@@ -400,6 +400,42 @@ Bill reported it wasn't working on either Chrome or Safari/iPad: leaving the tab
 
 **Verified for real this time:** same DevTools Protocol approach, but with `window.requestAnimationFrame` monkey-patched into a genuine no-op while "hidden" (never invokes its callback at all, reproducing the actual browser behavior that broke the GSAP version) — confirmed the fade-out still progressed smoothly and correctly under that condition (volume at exactly the expected halfway point 1.5s into the 3s fade, fully paused at 0 by 3.5s, all while rAF calls were completely blocked), and that returning produced a smooth fade-in from a small partial value back up through the halfway point to the full 0.75 — no snap in either direction. Zero console errors.
 
+## Session: August 30, 2026 (yet still later) — split card sound effects: select + landing
+
+Bill added several new sound files to `sndfx/` and asked to wire up the first three: `single-tap.mp3` (tapping/selecting a card), `card-down.mp3` (a card landing in its destination), and `double-tap.mp3` (an alternative to playing `single-tap.mp3` twice for the double-click auto-move gesture — he wasn't sure which made more sense and asked for a recommendation). This replaces the single generic `card-sound.mp3`/`playCardMoveSound()` used everywhere before.
+
+- `js/audio.js` — `SOUND_FILES` swapped `cardMove: 'sndfx/card-sound.mp3'` for `singleTap`, `doubleTap`, and `cardDown` entries; new `playSingleTapSound()` / `playDoubleTapSound()` / `playCardDownSound()` exports, `playCardMoveSound()` removed (no longer used anywhere).
+- `js/gameActions.js`:
+  - `handleCardClick()` — plays `playSingleTapSound()` right when a card is successfully selected.
+  - `moveCardToCandidate()` — no longer plays a sound at the start of the move; `playCardDownSound()` now fires inside `animateCardMove()`'s `onComplete`, alongside the existing DOM-reparent/scoring/history calls, so it's synced to the card actually landing rather than to the click that started the move.
+  - `handleCardDoubleClick()` — plays `playDoubleTapSound()` once the card passes the position-legality check (same trigger point `handleCardClick` uses), regardless of whether a legal destination is ultimately found — mirrors how the single-tap sound isn't conditional on a move following either.
+  - `drawCard()` — swapped its `playCardMoveSound()` call for `playCardDownSound()`. A drawn card is already placed in the discard pile before its (decorative, non-travel) bounce animation plays, so this is still effectively "on landing," just with no in-flight period to sync to.
+
+### Recommendation on double-tap vs. single-tap-twice
+
+Went with the dedicated `double-tap.mp3`, wired to the native `dblclick` event — but ran into (and fixed) a real complication along the way: a browser double-click fires the `click` event **twice** (once per press, before `dblclick` fires), so `js/events.js`'s click handler was calling `handleCardClick()` on *both* clicks — meaning every double-click was about to produce single-tap ×2 + double-tap ×1 (three overlapping sounds). Fixed by skipping the click handler's card-selection branch when `event.detail > 1` (the browser's own click-count on the event, 2 for the second click of a double-click) — added to `js/events.js`. That leaves one structural limitation: the *first* click of a double-click still can't be distinguished from a genuine single click at the moment it happens (that's only knowable once the second click actually arrives), so it still plays `single-tap.mp3` once, immediately followed by `double-tap.mp3` a few milliseconds later when `dblclick` fires. The alternative — delaying every single click's sound by ~200-300ms so it could be cancelled if a double-click follows — would make ordinary single taps feel laggy, which runs directly against the responsiveness work from earlier this week, so that tradeoff wasn't taken. **Worth Bill listening for himself:** the two sounds land only a few milliseconds apart (measured ~1-3ms in testing), likely perceived as one denser transient rather than two distinct taps, but that's a subjective call about the actual clips only he can make.
+
+### Verified
+
+`node --check` on all three edited files. Headless Chrome over the DevTools Protocol, `AudioContext.prototype.createBufferSource().start()` timestamped on every call: confirmed selecting a card plays exactly one sound within ~5ms; clicking a highlighted candidate plays zero sounds while the 0.3s move animation is still in flight and exactly one at ~303ms (i.e. right as the animation's `onComplete` fires); double-clicking a card produces exactly two sound events a few ms apart (down from three before the `event.detail` fix); and drawing a card plays one sound immediately. Zero console errors throughout.
+
+### Not yet wired (Bill's other new files, for a future session)
+
+`error.mp3`, `finish-no-win.mp3`, `new-game.mp3`, `win.mp3` are all sitting in `sndfx/` but weren't part of this request.
+
+## Session: August 30, 2026 (final) — remaining sound effects: win, finish-no-win, new game, error
+
+Wired up the four sound files left over from the previous session.
+
+- `js/audio.js` — `SOUND_FILES` gained `error`, `newGame`, `win`, `finishNoWin`; new `playErrorSound()` / `playNewGameSound()` / `playWinSound()` / `playFinishNoWinSound()` exports, same `playBuffer()` mechanism as everything else.
+- `js/game.js` — `checkWinCondition()` already branches on `winType` (`'win'` when `score === 728`, `'clear'` otherwise — all eight foundations complete but not maxed). `playWinSound()` / `playFinishNoWinSound()` added right alongside each branch.
+- `js/events.js` — the `.newgame` menu-item click handler now calls `playNewGameSound()` before `startNewGame()`. Deliberately scoped to just this handler (not inside `startNewGame()` itself), since Bill specifically asked for "new game from the menu" — `startNewGame()` is also called from the reset-stats confirm flow, which shouldn't also trigger it.
+- `js/ui.js` — new `playErrorSound()` import; both `showError()` (the general error popup) and `openConfirmDialog()` (the reset-your-stats warning dialog) now play it, since Bill's request named both as error-sound triggers. Same call in both, so the two share one code path.
+
+### Verified
+
+`node --check` on all five edited files. Headless Chrome over the DevTools Protocol: confirmed all four new `sndfx/*.mp3` requests returned 200 (catches filename/format mistakes for `win.mp3`/`finish-no-win.mp3`, which aren't easily reachable in an automated test without actually winning a full game); clicking "reset your stats" played exactly one sound with a duration matching `error.mp3`; clicking "new game" played `new-game.mp3` immediately, alongside the pre-existing `full-deal.mp3` from the subsequent deal (both landed, confirming they don't interfere with each other). `showError()` and `openConfirmDialog()` share the exact same `playErrorSound()` call, so verifying one exercises the shared mechanism for both. Win/finish-no-win weren't separately live-tested (would require completing a full game through legitimate play, impractical to automate) — confirmed via the successful file load plus code review of the branch they sit in. Zero console errors.
+
 ## Remaining known issues / possible next steps
 
 - **Mobile divider vs. long fan** (minor, cosmetic) — the ≤490px divider is a stable grid border spanning the foundation+tableau rows; a discard fan long enough to overflow that area extends slightly past the bottom of the border. Chosen tradeoff (grid-only, no JS) over the fan-tracking absolute-positioned version. Revisit if it bothers.

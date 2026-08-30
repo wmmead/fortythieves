@@ -3,7 +3,7 @@ import { stackCards, setSectionHeights, createCardElement, blockUserInteraction,
 import { getCardMoveDelta, animateCardMove, animateMoveFrom } from './animation.js';
 import { setupEventListeners } from './events.js';
 import { createNewGameRecord, updateCurrentGameStats, deleteZeroMoveRecords, getGameStatistics } from './stats.js';
-import { playFullDealSound, playUndoSound } from './audio.js';
+import { playFullDealSound, playUndoSound, playWinSound, playFinishNoWinSound } from './audio.js';
 
 /*
 ================================================================================
@@ -505,8 +505,10 @@ function checkWinCondition() {
     let winType;
     if( score == 728 ){
         winType = 'win';
+        playWinSound();
     } else {
         winType = 'clear';
+        playFinishNoWinSound();
     }
     // changes the message in the win screen based on the type of win
     showWinScreen(winType);
