@@ -3,6 +3,7 @@ import { initGame } from './game.js';
 import { closeIntro } from './ui.js';
 import { startMusic, initVolumeSlider } from './music.js';
 import { initSfxToggle, unlockAudio } from './audio.js';
+import { preloadCardImages } from './preload.js';
 
 // Wait for the DOM to be fully loaded, then wait for the player to click
 // "Play Game" on the intro overlay before starting the game. Gating the deal
@@ -13,11 +14,20 @@ window.addEventListener('DOMContentLoaded', () => {
     initVolumeSlider(); // same for the volume slider
     const playButton = document.getElementById('play-game');
     if (!playButton) return;
-    playButton.addEventListener('click', async () => {
-        unlockAudio();
-        startMusic();
-        await closeIntro();
-        // Initialize the game, which sets the board and adds event listeners
-        await initGame();
-    }, { once: true });
+
+    // Faded out (the same look/behavior as the greyed-out undo button) until
+    // every card image has finished loading, so the deal doesn't have to
+    // fetch them on demand — that's what caused the per-card loading lag on
+    // a cold cache. The click listener isn't attached until then, either.
+    playButton.classList.add('disabled');
+    preloadCardImages().then(() => {
+        playButton.classList.remove('disabled');
+        playButton.addEventListener('click', async () => {
+            unlockAudio();
+            startMusic();
+            await closeIntro();
+            // Initialize the game, which sets the board and adds event listeners
+            await initGame();
+        }, { once: true });
+    });
 });

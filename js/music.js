@@ -14,6 +14,7 @@ const MAX_CONCURRENT_TRACKS = 3;    // safety cap so the cascade can't stack ind
 const PRUNE_FADE_DURATION = 2;
 const PRUNE_CHECK_INTERVAL = 60000;
 const VOLUME_CHANGE_DURATION = 0.3; // seconds, re-targeting already-playing tracks to a new volume
+const BACKGROUND_FADE_DURATION = 3; // seconds, fading out/in when the tab is hidden/shown
 const VOLUME_KEY = 'musicVolume';
 const DEFAULT_VOLUME = 0.75;
 
@@ -102,10 +103,56 @@ function pauseAllTracks() {
     });
 }
 
-function resumeAllTracks(targetVolume) {
+function resumeAllTracks(targetVolume, duration = VOLUME_CHANGE_DURATION) {
     activeAudioElements.forEach((audio) => {
         audio.play().catch(() => {});
-        gsap.to(audio, { volume: targetVolume, duration: VOLUME_CHANGE_DURATION });
+        gsap.to(audio, { volume: targetVolume, duration });
+    });
+}
+
+// GSAP's ticker runs on requestAnimationFrame, which browsers stop invoking
+// entirely while a tab is hidden. A gsap.to() fade started right as the tab
+// backgrounds would freeze mid-tween — volume never actually drops, so the
+// audio just keeps playing — and then, once the tab is visible again and rAF
+// resumes, GSAP sees a huge elapsed-time jump since its last tick and treats
+// the tween as instantly finished: it snaps straight to the end value and
+// fires its onComplete right away, which sounds like an abrupt cut with no
+// fade. setInterval keeps firing (throttled, but not suspended) in a
+// background tab, so the two fades tied to backgrounding use this manual,
+// real-elapsed-time ramp instead of GSAP.
+function manualFadeVolume(audio, targetVolume, duration, onComplete) {
+    if (audio.fadeIntervalId) {
+        clearInterval(audio.fadeIntervalId);
+        audio.fadeIntervalId = null;
+    }
+    const startVolume = audio.volume;
+    const startTime = performance.now();
+    const durationMs = duration * 1000;
+
+    audio.fadeIntervalId = setInterval(() => {
+        const t = Math.min(1, (performance.now() - startTime) / durationMs);
+        audio.volume = startVolume + (targetVolume - startVolume) * t;
+        if (t >= 1) {
+            clearInterval(audio.fadeIntervalId);
+            audio.fadeIntervalId = null;
+            if (onComplete) onComplete();
+        }
+    }, 100);
+}
+
+// Gracefully fades every active track to silence, then pauses it in place
+// (same "pause, don't discard" reasoning as pauseAllTracks — see above).
+function fadeOutAllTracks(duration) {
+    activeAudioElements.forEach((audio) => {
+        gsap.killTweensOf(audio); // in case a gsap-driven fade was mid-flight
+        manualFadeVolume(audio, 0, duration, () => audio.pause());
+    });
+}
+
+function resumeAllTracksFromBackground(targetVolume, duration) {
+    activeAudioElements.forEach((audio) => {
+        audio.play().catch(() => {});
+        manualFadeVolume(audio, targetVolume, duration, null);
     });
 }
 
@@ -120,6 +167,32 @@ setInterval(() => {
         startNextTrack();
     }
 }, PRUNE_CHECK_INTERVAL);
+
+/* ---------- Pause while backgrounded ---------- */
+/* iOS Safari (and other browsers) keep <audio>/Web Audio playing even after
+   the user leaves the tab for another app — the Page Visibility API is the
+   standard, reliable signal for "the user can no longer see or hear this
+   tab" (tab switches, app switches, minimizing), unlike window blur/focus,
+   which also fires for things like clicking the address bar while the page
+   stays fully visible. Fades out on hide, fades back in on return — but
+   never past whatever the user's own volume setting already was. */
+
+let backgroundedForVisibility = false;
+
+function handleVisibilityChange() {
+    if (document.hidden) {
+        if (backgroundedForVisibility || musicVolume <= 0) return;
+        backgroundedForVisibility = true;
+        fadeOutAllTracks(BACKGROUND_FADE_DURATION);
+    } else {
+        if (!backgroundedForVisibility) return;
+        backgroundedForVisibility = false;
+        if (musicVolume <= 0) return; // respect an explicit mute set elsewhere
+        resumeAllTracksFromBackground(musicVolume, BACKGROUND_FADE_DURATION);
+    }
+}
+
+document.addEventListener('visibilitychange', handleVisibilityChange);
 
 /* ---------- Public API ---------- */
 
