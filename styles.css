@@ -765,7 +765,7 @@ section {
   background-color: transparent;
   background-image: linear-gradient(to bottom, #fff, #f8eedb);
   border: 0 solid #e5e7eb;
-  border-radius: .5rem;
+  border-radius: 5px;
   box-sizing: border-box;
   color: #482307;
   column-gap: 1rem;
@@ -776,7 +776,10 @@ section {
   font-weight: 700;
   line-height: 24px;
   margin: 0;
-  outline: 2px solid transparent;
+  /* outline: 2px solid transparent; */
+  outline: 1px solid #c7b8eb;
+  /* Negative offset pulls the outline inside */
+  outline-offset: -8px; 
   padding: 1rem 1.5rem;
   text-align: center;
   text-transform: none;
