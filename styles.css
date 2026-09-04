@@ -227,58 +227,87 @@ h1 span:last-of-type {
 }
 
 /* Menu Styles */
-#menuiconbg {
-    position: absolute;
-    top: 0;
-    right: 25px;
-    z-index: 999;
-    width: 60px;
-    height: 55px;
-    background-image: url(images/background7.jpg);
-    border-left: 5px solid #cac4b7;
-    border-right: 5px solid #cac4b7;
-    border-bottom: 5px solid #cac4b7;
-    border-bottom-left-radius: 15px;
-    border-bottom-right-radius: 15px;
-    box-shadow: 0px 0px 10px 10px rgba(0, 0, 0, 0.25);
-}
-
-#hamburgermenu {
-    max-width: 30px;
-    position: absolute;
-    top: 10px;
-    right: 40px;
-    z-index: 1001;
-    cursor: pointer;
-}
-
+/* One panel now holds both the hamburger button and the list (previously
+   #hamburgermenu / #menuiconbg were separate, independently-fixed elements
+   that never moved when the menu opened). The button is the panel's LAST
+   child: closed, the panel sits mostly above the viewport and only the
+   button's own height peeks into view at the top-right corner (using the
+   panel's existing bottom border-radius/border, which already reads as a
+   rounded tab); open, the whole panel slides down as one rigid piece, so the
+   button visibly travels down to the bottom of the panel as the list
+   unfurls into the space above it. Because the background is a single
+   opaque image (not the translucent glass background-blur look of the
+   meaddesign template this is based on), there's no seam to hide where the
+   button meets the list — one shared background reads as one continuous
+   surface with no extra clip-path trick needed. */
 #menu {
     position: absolute;
+    top: 0;
     right: 20px;
     width: 300px;
     z-index: 1000;
-    background-image: url(images/background7.jpg);
+    display: flex;
+    flex-direction: column;
+    /* background-image: url(images/background7.jpg);
     border-left: 5px solid #cac4b7;
     border-right: 5px solid #cac4b7;
     border-bottom: 5px solid #cac4b7;
     border-bottom-left-radius: 15px;
-    border-bottom-right-radius: 15px;
-    box-shadow: 0px 0px 10px 10px rgba(0, 0, 0, 0.25);
-    transition: all 500ms cubic-bezier(0.075, 0.820, 0.165, 1.000);
+    border-bottom-right-radius: 15px; 
+    box-shadow: 0px 0px 10px 10px rgba(0, 0, 0, 0.25);*/
+    transition: transform 500ms cubic-bezier(0.075, 0.820, 0.165, 1.000);
 }
+
+
 
 #menu.open {
-    top: 0;
+    transform: translateY(0);
 }
 
+/* translateY(-100%) shifts the panel up by its own rendered height, whatever
+   that happens to be at the current content/viewport (the list's line count
+   changes with width) — then the +60px (the .menu-btn's 55px height plus
+   #menu's own 5px border-bottom, which sits below the button in the box
+   model) puts it back down just enough to leave the button — border and
+   all — on screen. A hardcoded pixel offset here would only be correct for
+   one specific rendered height and would silently push the whole panel —
+   button included — off-screen at any other content height, which is
+   exactly what happened before this was written as a percentage. */
 #menu.close {
-    top: -600px;
+    transform: translateY(calc(-100% + 60px));
 }
 
 #menu ul {
     list-style-type: none;
+    background-image: url(images/background7.jpg);
+    border-left: 5px solid #cac4b7;
+    border-right: 5px solid #cac4b7;
+    border-bottom: 5px solid #cac4b7;
+    border-bottom-left-radius: 15px;
+    box-shadow: 0px 0px 10px 10px rgba(0, 0, 0, 0.25);
     margin: 0;
-    padding: 50px 20px 20px 20px;
+    padding: 20px;
+}
+
+#hamburgermenu-container{
+    width: 70px;
+    background-image: url(images/background7.jpg);
+    border-left: 5px solid #cac4b7;
+    border-right: 5px solid #cac4b7;
+    border-bottom: 5px solid #cac4b7;
+    border-bottom-left-radius: 15px;
+    border-bottom-right-radius: 15px;
+    box-shadow: 0px 0px 10px 10px rgba(0, 0, 0, 0.25);
+    align-self: flex-end;
+    position: relative;
+    top: -5px;
+    /* This tab overlaps the ul's bottom-right corner (via the -5px top
+       offset above), and its own box-shadow was bleeding onto the ul's
+       surface there. clip-path crops the shadow off flush on the top and
+       left sides (where it overlaps the ul) while leaving it untouched on
+       the right and bottom (where it floats freely) — a plain overflow:hidden
+       on a wrapper would've clipped all four sides instead of just two. */
+    clip-path: inset(0 -20px -20px 0);
 }
 
 #menu ul li {
@@ -287,6 +316,44 @@ h1 span:last-of-type {
 
 #menu ul li:last-of-type {
     margin: 0;
+}
+
+/* Three bars that morph into an X, matching #menu's open/close state
+   directly (no separate JS-toggled class needed). No background/border of
+   its own — see the comment on #menu above. */
+.menu-btn {
+    align-self: flex-end;
+    background: none;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 5px;
+    width: 60px;
+    height: 55px;
+    padding: 0 15px;
+}
+
+.menu-btn span {
+    background: #482307;
+    border-radius: 2px;
+    display: block;
+    height: 3px;
+    width: 100%;
+    transition: all 0.3s ease-in-out;
+}
+
+#menu.open .menu-btn span:nth-child(1) {
+    transform: translateY(8px) rotate(45deg);
+}
+
+#menu.open .menu-btn span:nth-child(2) {
+    opacity: 0;
+}
+
+#menu.open .menu-btn span:nth-child(3) {
+    transform: translateY(-8px) rotate(-45deg);
 }
 
 #stats {
