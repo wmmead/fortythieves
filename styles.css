@@ -78,7 +78,8 @@ h1 span:last-of-type {
     display: none;
 }
 
-#intro-top {
+#intro-top,
+#resume-top {
     width: 280px;
     height: 280px;
     background-image: url(images/introBG.png);
@@ -86,11 +87,47 @@ h1 span:last-of-type {
     position: relative;
 }
 
-#intro-top h1 {
+#intro-top h1,
+#resume-top h1 {
     position: absolute;
     top: 135px;
     left: 140px;
     font-size: 32px;
+}
+
+/* Resume overlay — same panel treatment as #intro, but over a game already in
+   progress, so it sits on a dimmed backdrop that blocks play until dismissed.
+   Shown by js/resumeOverlay.js when the page becomes visible again and audio
+   hasn't restarted; hidden again the moment sound is running. */
+#resume {
+    position: fixed;
+    inset: 0;
+    z-index: 2000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(35, 20, 5, 0.65);
+    opacity: 1;
+    transition: opacity 500ms ease-in;
+}
+
+/* Beats the display:flex above (id + attribute outranks id alone). */
+#resume[hidden] {
+    display: none;
+}
+
+/* Beats #resume's own opacity:1, which a bare .fadeout could not. */
+#resume.fadeout {
+    opacity: 0;
+}
+
+#resume-panel {
+    width: 320px;
+    max-width: calc(100vw - 40px);
+    background-image: url(images/background7.jpg);
+    padding: 20px;
+    border-radius: 15px;
+    border: 5px solid #cac4b7;
 }
 
 #olenmode {

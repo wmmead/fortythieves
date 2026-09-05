@@ -22,7 +22,7 @@ const SOUND_FILES = {
     finishNoWin: 'sndfx/finish-no-win.mp3',
 };
 
-import { getAudioContext, unlockAudioContext } from './audioContext.js';
+import { getAudioContext, getMasterGain, unlockAudioContext } from './audioContext.js';
 
 const buffers = {}; // name -> decoded AudioBuffer, filled in as each file loads
 
@@ -65,10 +65,10 @@ export function setSfxEnabled(value) {
 // preference on load, and keeps them in lockstep with each other (and with
 // localStorage) whenever either one is toggled.
 export function initSfxToggle() {
-    const toggles = [
-        document.getElementById('sfx-toggle-intro'),
-        document.getElementById('sfx-toggle-menu'),
-    ].filter(Boolean);
+    // Every sound-effects switch on the page — the intro overlay, the menu,
+    // and the resume overlay — queried by structure so a new one is picked up
+    // without editing this list.
+    const toggles = Array.from(document.querySelectorAll('.sndfx-switch input[type="checkbox"]'));
 
     toggles.forEach((toggle) => {
         toggle.checked = sfxEnabled;
@@ -93,7 +93,7 @@ function playBuffer(name) {
     const ctx = getAudioContext();
     const source = ctx.createBufferSource();
     source.buffer = buffer;
-    source.connect(ctx.destination);
+    source.connect(getMasterGain());
     source.start(0);
 }
 

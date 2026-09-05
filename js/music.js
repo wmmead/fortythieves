@@ -35,7 +35,7 @@
 // gains to 0; the cascade keeps running silently so the mix is continuous
 // when the volume comes back.
 import { MUSIC_TRACKS } from './musicTracks.js';
-import { getAudioContext, unlockAudioContext } from './audioContext.js';
+import { getAudioContext, getMasterGain, unlockAudioContext, ensureAudioContextHealthy, onAudioContextRebuild, isAudioRunning } from './audioContext.js';
 import { mp3Duration } from './mp3Duration.js';
 
 /* ---------- Tuning constants ---------- */
@@ -118,24 +118,37 @@ function currentGain(track) {
     return ramp.startValue + (ramp.endValue - ramp.startValue) * (now - ramp.startTime) / (ramp.endTime - ramp.startTime);
 }
 
-function fadeGain(track, targetValue, duration, onComplete) {
+// `startAt` delays the ramp to a future point on the audio clock, holding the
+// current value until then. A track's fade-in uses it to begin exactly when
+// its first buffer starts sounding rather than when the track object was
+// created — see flushPcm.
+function fadeGain(track, targetValue, duration, onComplete, startAt) {
     if (track.fadeTimerId) {
         clearTimeout(track.fadeTimerId);
         track.fadeTimerId = null;
     }
     const gain = track.gainNode.gain;
     const now = getAudioContext().currentTime;
+    const from = startAt && startAt > now ? startAt : now;
     const startValue = currentGain(track);
     gain.cancelScheduledValues(now);
     gain.setValueAtTime(startValue, now);
-    gain.linearRampToValueAtTime(targetValue, now + duration);
-    track.gainRamp = { startValue, startTime: now, endValue: targetValue, endTime: now + duration };
+    if (from > now) gain.setValueAtTime(startValue, from); // hold, then ramp
+    gain.linearRampToValueAtTime(targetValue, from + duration);
+    track.gainRamp = { startValue, startTime: from, endValue: targetValue, endTime: from + duration };
     if (onComplete) {
         track.fadeTimerId = setTimeout(() => {
             track.fadeTimerId = null;
             onComplete();
-        }, duration * 1000);
+        }, (from - now + duration) * 1000);
     }
+}
+
+// A track that hasn't scheduled its first buffer yet is silent and has no
+// fade running, so volume changes must leave it alone: its fade-in reads the
+// current volume when it finally starts.
+function hasStarted(track) {
+    return track.startTime !== null;
 }
 
 /* ---------- Track selection ---------- */
@@ -152,7 +165,7 @@ function createTrack(src) {
     const ctx = getAudioContext();
     const gainNode = ctx.createGain();
     gainNode.gain.value = 0;
-    gainNode.connect(ctx.destination);
+    gainNode.connect(getMasterGain());
 
     return {
         src,
@@ -179,6 +192,7 @@ function createTrack(src) {
         scheduledSamples: 0,
         sources: new Set(),
 
+        fadeInDuration: FADE_IN_DURATION,
         duration: null,       // exact, once the download finishes
         triggeredNext: false,
         failed: false,
@@ -190,7 +204,10 @@ function createTrack(src) {
 // download, stops and disconnects every scheduled buffer, disconnects its
 // gain node, and frees the decoder's WASM memory. Used for a normal end, a
 // prune, and a failure alike.
-function forgetTrack(track) {
+// `quiet` skips filling the freed slot — used when the whole cascade is
+// being torn down at once (an AudioContext rebuild), where the restart is
+// handled in one go afterwards instead of per-track.
+function forgetTrack(track, quiet) {
     if (track.forgotten) return;
     track.forgotten = true;
 
@@ -203,13 +220,22 @@ function forgetTrack(track) {
         track.fadeTimerId = null;
     }
     if (track.reader) track.reader.cancel().catch(() => {});
+    // Silence first: a value write is the one teardown step that still works
+    // on a context the OS has interrupted, where the stop()/disconnect()
+    // calls below can fail without saying so.
+    try {
+        track.gainNode.gain.cancelScheduledValues(0);
+        track.gainNode.gain.value = 0;
+    } catch (e) { /* context gone */ }
     track.sources.forEach((source) => {
         source.onended = null;
+        // These nodes may belong to a context that has already been closed
+        // (see the rebuild handler below), where every call throws.
         try { source.stop(); } catch (e) { /* already stopped */ }
-        source.disconnect();
+        try { source.disconnect(); } catch (e) { /* context gone */ }
     });
     track.sources.clear();
-    track.gainNode.disconnect();
+    try { track.gainNode.disconnect(); } catch (e) { /* context gone */ }
     if (track.decoder && track.decoderReady) {
         try { track.decoder.free(); } catch (e) { /* already freed */ }
     }
@@ -220,7 +246,7 @@ function forgetTrack(track) {
 
     // A slot just opened up — if a cascade trigger was deferred while the
     // cap was full, honor it now rather than waiting on the 60s watchdog.
-    if (pendingStarts > 0 && musicStarted) {
+    if (!quiet && pendingStarts > 0 && musicStarted) {
         pendingStarts -= 1;
         startNextTrack();
     }
@@ -245,7 +271,7 @@ function playTrack(src, fadeInDuration) {
     const track = createTrack(src);
     activeTracks.add(track);
     addActiveTrackName(src);
-    fadeGain(track, musicVolume, fadeInDuration || FADE_IN_DURATION);
+    track.fadeInDuration = fadeInDuration || FADE_IN_DURATION;
     startStreaming(track).catch((err) => handleFailure(track, err && err.message ? err.message : String(err)));
 }
 
@@ -352,7 +378,17 @@ function flushPcm(track) {
     const samples = track.pcmSamples;
     track.pcmSamples = 0;
 
-    if (track.startTime === null) track.startTime = ctx.currentTime + START_LEAD;
+    if (track.startTime === null) {
+        track.startTime = ctx.currentTime + START_LEAD;
+        // Start the fade-in exactly when the first sample sounds. Anchoring
+        // it to track creation instead meant the gain had already climbed
+        // during the download and decode, so the mp3 decoder's first-frames
+        // warm-up (a few tens of milliseconds of noise before the bit
+        // reservoir is primed) played at audible volume — a split-second
+        // burst on the iPad, where fetching a few MB takes real time. On a
+        // local desktop server the delay was too short to hear.
+        fadeGain(track, musicVolume, track.fadeInDuration, null, track.startTime);
+    }
     let when = track.startTime + track.scheduledSamples / track.sampleRate;
     if (when < ctx.currentTime) {
         // Underrun (the network fell behind playback): shift the track's
@@ -406,6 +442,12 @@ setInterval(() => {
 // the request is queued (bounded, so a burst of triggers can't stack up an
 // endless backlog) and forgetTrack() drains it as slots free up.
 function startNextTrack() {
+    // Never start a track the user can't hear. After a context rebuild the
+    // cascade sits empty until iOS lets audio run again, and without this
+    // the watchdog below would seed silent phantom tracks into a suspended
+    // context — which then showed up alongside the real pair once sound
+    // returned (one track listed, then three).
+    if (!isAudioRunning()) return;
     if (activeTracks.size >= MAX_CONCURRENT_TRACKS) {
         pendingStarts = Math.min(pendingStarts + 1, MAX_CONCURRENT_TRACKS);
         return;
@@ -440,10 +482,16 @@ setInterval(() => {
    unlike window blur/focus, which also fires for things like clicking the
    address bar while the page stays fully visible. On hide: fade everything
    out, then suspend the shared context so the audio clock stops and every
-   scheduled buffer holds its place. On show: resume the context (iOS can
-   also leave it 'interrupted' after an app switch, and resuming a context
-   that already ran once doesn't need a fresh user gesture) and fade back in
-   — but never past the user's own volume setting. */
+   scheduled buffer holds its place. On show: resume the context and fade
+   back in — but never past the user's own volume setting.
+
+   Switching apps on iPadOS is different from switching tabs: the OS
+   interrupts the audio session immediately, so the 3s fade-out gets cut
+   short (the audio thread stops before the ramp can finish — nothing here
+   can outrun that), and the context never really recovers afterwards. On
+   return, ensureAudioContextHealthy() replaces it, which tears this cascade
+   down and starts a fresh one; only tracks that survive an ordinary tab
+   switch get faded back up here. */
 
 let backgroundedForVisibility = false;
 let suspendTimerId = null;
@@ -452,24 +500,70 @@ function handleVisibilityChange() {
     if (document.hidden) {
         if (backgroundedForVisibility || !musicStarted) return;
         backgroundedForVisibility = true;
-        activeTracks.forEach((track) => fadeGain(track, 0, BACKGROUND_FADE_DURATION));
+        activeTracks.forEach((track) => {
+            if (hasStarted(track)) fadeGain(track, 0, BACKGROUND_FADE_DURATION);
+        });
         suspendTimerId = setTimeout(() => {
             suspendTimerId = null;
-            getAudioContext().suspend().catch(() => {});
+            // Only suspend a context that's actually running. On iOS the OS
+            // has usually already interrupted it by this point, and
+            // suspending on top of an interruption is a known way to end up
+            // with a context that never resumes again.
+            const ctx = getAudioContext();
+            if (ctx.state === 'running') ctx.suspend().catch(() => {});
         }, BACKGROUND_FADE_DURATION * 1000);
     } else {
-        if (!backgroundedForVisibility) return;
+        // The health check runs whenever the page comes back with audio in
+        // use — not only when the music was faded out. The sound effects
+        // share this context, and an iOS interruption kills them too, so
+        // this has to run even if the music is muted or the cascade is
+        // empty. (musicStarted is set by the same "Play Game" click that
+        // unlocks the context, so before that there's no audio to lose.)
+        if (!musicStarted) return;
+        const wasBackgrounded = backgroundedForVisibility;
         backgroundedForVisibility = false;
         if (suspendTimerId) { // came back mid-fade: never suspend a visible tab
             clearTimeout(suspendTimerId);
             suspendTimerId = null;
         }
-        unlockAudioContext();
-        activeTracks.forEach((track) => fadeGain(track, musicVolume, BACKGROUND_FADE_DURATION));
+        // Fade the current tracks straight back up. On an ordinary tab
+        // switch they're still there and this is all that's needed; after an
+        // iOS interruption the health check below discards them and the
+        // rebuild handler starts a fresh pair once audio is really flowing.
+        if (wasBackgrounded) {
+            activeTracks.forEach((track) => {
+                if (hasStarted(track)) fadeGain(track, musicVolume, BACKGROUND_FADE_DURATION);
+            });
+        }
+        ensureAudioContextHealthy();
     }
 }
 
 document.addEventListener('visibilitychange', handleVisibilityChange);
+
+/* ---------- Recovering from an AudioContext rebuild ---------- */
+/* After an iOS interruption the shared context is replaced wholesale (see
+   audioContext.js), which invalidates every gain node and scheduled buffer
+   the cascade owns. There's nothing to salvage — the tracks are torn down
+   and a fresh pair is started on the new context, so coming back from
+   another app fades the music in again from the beginning of two new
+   tracks. */
+
+onAudioContextRebuild({
+    teardown: () => {
+        Array.from(activeTracks).forEach((track) => forgetTrack(track, true));
+        activeTracks.clear();
+        playingTracks.clear();
+        activeTrackNames.length = 0;
+        renderActiveTrackNames();
+        pendingStarts = 0;
+    },
+    restart: () => {
+        if (!musicStarted || musicVolume <= 0) return;
+        startNextTrack();
+        startNextTrack();
+    },
+});
 
 /* ---------- Public API ---------- */
 
@@ -489,8 +583,12 @@ export function startMusic() {
         return;
     }
     if (musicVolume <= 0) return;
-    startNextTrack();
-    startNextTrack();
+    // startNextTrack() refuses to start anything the user can't hear, so
+    // wait for the resume this gesture allows before seeding the cascade.
+    unlockAudioContext().then(() => {
+        startNextTrack();
+        startNextTrack();
+    });
 }
 
 export function getMusicVolume() {
@@ -508,11 +606,17 @@ export function setMusicVolume(volume) {
     musicVolume = clamped;
     localStorage.setItem(VOLUME_KEY, String(clamped));
 
-    activeTracks.forEach((track) => fadeGain(track, clamped, VOLUME_CHANGE_DURATION));
+    activeTracks.forEach((track) => {
+        if (hasStarted(track)) fadeGain(track, clamped, VOLUME_CHANGE_DURATION);
+    });
 
     if (wasZero && clamped > 0 && activeTracks.size === 0 && musicStarted && getDecoderClass()) {
-        startNextTrack();
-        startNextTrack();
+        // Raising the slider is a user gesture, so this is a good moment to
+        // get the context running if it isn't.
+        unlockAudioContext().then(() => {
+            startNextTrack();
+            startNextTrack();
+        });
     }
 }
 
@@ -520,10 +624,10 @@ export function setMusicVolume(volume) {
 // load, and keeps them in lockstep with each other (and with localStorage)
 // whenever either one is moved.
 export function initVolumeSlider() {
-    const sliders = [
-        document.getElementById('music-volume-intro'),
-        document.getElementById('music-volume-menu'),
-    ].filter(Boolean);
+    // Every music slider on the page — the intro overlay, the menu, and the
+    // resume overlay — queried by class so a new one is picked up without
+    // editing this list.
+    const sliders = Array.from(document.querySelectorAll('.volume-slider'));
 
     sliders.forEach((slider) => {
         slider.value = String(Math.round(musicVolume * 100));

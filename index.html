@@ -39,6 +39,28 @@
             <input type="range" class="volume-slider" id="music-volume-intro" min="0" max="100" value="75">
         </div>
     </div>
+    <!-- Shown when the page comes back from the background without its audio
+         (see js/resumeOverlay.js) — the tap on "Resume Game" is the user
+         gesture iOS requires before sound can start again. -->
+    <div id="resume" hidden>
+        <div id="resume-panel">
+            <div id="resume-top">
+                <h1><span>forty</span> <span>thieves</span></h1>
+            </div>
+            <a class="action-bttn" id="resume-game">Resume Game</a>
+            <div class="sndfx-switch">
+                <p>sound effects</p>
+                <label class="switch">
+                    <input type="checkbox" id="sfx-toggle-resume">
+                    <span class="slider"></span>
+                </label>
+            </div>
+            <div class="music-volume">
+                <p>music volume</p>
+                <input type="range" class="volume-slider" id="music-volume-resume" min="0" max="100" value="75">
+            </div>
+        </div>
+    </div>
     <div id="container" class="pre-game">
         <nav id="menu" class="close">
             <ul>

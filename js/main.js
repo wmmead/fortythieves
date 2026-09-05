@@ -4,6 +4,7 @@ import { closeIntro } from './ui.js';
 import { startMusic, initVolumeSlider } from './music.js';
 import { initSfxToggle, unlockAudio } from './audio.js';
 import { preloadCardImages } from './preload.js';
+import { initResumeOverlay } from './resumeOverlay.js';
 
 // Wait for the DOM to be fully loaded, then wait for the player to click
 // "Play Game" on the intro overlay before starting the game. Gating the deal
@@ -25,6 +26,7 @@ window.addEventListener('DOMContentLoaded', () => {
         playButton.addEventListener('click', async () => {
             unlockAudio();
             startMusic();
+            initResumeOverlay(); // only armed once a game is actually under way
             await closeIntro();
             // Initialize the game, which sets the board and adds event listeners
             await initGame();
