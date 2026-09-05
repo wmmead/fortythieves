@@ -508,6 +508,18 @@ Bill swapped a batch of files in `audio/` (removed several, added a new run of `
 
 `diff` between the array's contents and `ls audio/*.mp3` came back empty — exact match, 79 entries both sides. `node --check` on the file.
 
+## Session: September 5, 2026 (still later) — fix: music going permanently silent
+
+Bill reported the music was playing normally, a new track (`32-reverie-harmonic-healing.mp3`) appeared in the (temporary) now-playing list but never actually started, and once the two tracks that *were* playing finished naturally, no music played for the rest of the game. No console access on iPad to see an error directly, but the file itself checked out fine on its own.
+
+**Root cause, found by tracing `playTrack()` in `js/music.js`:** a track that fails to actually play — a rejected `play()` promise, or the browser firing a genuine media `error` event (network hiccup, decode failure, iOS reclaiming a background resource, anything) — was never being cleaned up. `audio.play().catch(() => {})` silently swallowed the failure, and there was no listener at all for the `error` event. A track stuck this way never fires `timeupdate` (no progress → no cascade trigger) and never fires `ended` (no playback → never reaches the end), so it stayed forever in `playingTracks` and `activeAudioElements` — a permanent "phantom" occupying a slot. Once the two real tracks ended and cleaned themselves up normally, `activeAudioElements.size` was `1` (the phantom), never `0` — so the watchdog's `else if (activeAudioElements.size === 0 && musicStarted) startNextTrack();` safety net never saw an empty cascade and never restarted it. Silence for good.
+
+- `js/music.js` — new shared `forgetTrack(src, audio)` helper (the same cleanup `ended` already did, now also reused by the prune path in `removeRandomActiveTrack`). `playTrack()` now also listens for the `error` event, and the `play()` rejection handler calls `forgetTrack()` too — both immediately follow up with `startNextTrack()` so a single failure gets replaced right away rather than waiting on the 60s watchdog (which now also works correctly as a backstop, since it's no longer blocked by a phantom entry).
+
+### Verified
+
+`node --check`. Headless Chrome, `Audio` instances tagged with an id and creation counter: dispatched a real `error` event on one of the two initial tracks and confirmed it was immediately removed from the now-playing list and a replacement track was created and started. Then, mirroring the reported scenario as closely as an automated test can, dispatched `error` on *every* currently-active track at once (the worst case: nothing left to fall back on) and confirmed the engine self-healed with fresh tracks rather than freezing into permanent silence. Zero console errors throughout.
+
 ## Remaining known issues / possible next steps
 
 - **Mobile divider vs. long fan** (minor, cosmetic) — the ≤490px divider is a stable grid border spanning the foundation+tableau rows; a discard fan long enough to overflow that area extends slightly past the bottom of the border. Chosen tradeoff (grid-only, no JS) over the fan-tracking absolute-positioned version. Revisit if it bothers.

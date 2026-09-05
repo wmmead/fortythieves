@@ -67,6 +67,14 @@ function pickRandomTrack() {
     return available[Math.floor(Math.random() * available.length)];
 }
 
+// Removes a track's bookkeeping (used for both a normal end-of-track and a
+// failed one — see playTrack's error handling below).
+function forgetTrack(src, audio) {
+    playingTracks.delete(src);
+    activeAudioElements.delete(audio);
+    removeActiveTrackName(src);
+}
+
 function playTrack(src, fadeInDuration) {
     playingTracks.add(src);
 
@@ -85,12 +93,27 @@ function playTrack(src, fadeInDuration) {
     });
 
     audio.addEventListener('ended', () => {
-        playingTracks.delete(src);
-        activeAudioElements.delete(audio);
-        removeActiveTrackName(src);
+        forgetTrack(src, audio);
     });
 
-    audio.play().catch(() => {});
+    // A track that fails to play (rejected play() promise, or a genuine
+    // media 'error' event — a network hiccup, a decode failure, anything)
+    // used to just sit there silently forever: it was never removed from
+    // playingTracks/activeAudioElements, so it permanently occupied a slot.
+    // Once the other real tracks finished naturally, activeAudioElements
+    // never dropped back to 0, so the watchdog below never noticed the
+    // cascade had effectively died and never restarted it — music went
+    // silent for the rest of the game. Cleaning up here, and immediately
+    // trying a replacement, closes that gap.
+    audio.addEventListener('error', () => {
+        forgetTrack(src, audio);
+        startNextTrack();
+    });
+
+    audio.play().catch(() => {
+        forgetTrack(src, audio);
+        startNextTrack();
+    });
     gsap.to(audio, { volume: musicVolume, duration: fadeInDuration || FADE_IN_DURATION });
 }
 
@@ -114,9 +137,7 @@ function removeRandomActiveTrack(duration) {
         duration,
         onComplete: () => {
             audio.pause();
-            playingTracks.delete(src);
-            activeAudioElements.delete(audio);
-            removeActiveTrackName(src);
+            forgetTrack(src, audio);
         }
     });
 }
