@@ -105,15 +105,24 @@ function playTrack(src, fadeInDuration) {
     // cascade had effectively died and never restarted it — music went
     // silent for the rest of the game. Cleaning up here, and immediately
     // trying a replacement, closes that gap.
-    audio.addEventListener('error', () => {
+    //
+    // A real failure commonly fires BOTH of these (the browser rejects the
+    // pending play() promise *and* emits 'error' on the element for the same
+    // underlying problem) — without the `failed` guard, one failure retried
+    // twice, and if that retry failed the same way it retried twice again,
+    // and so on: an exponential blow-up that tore through the entire track
+    // list in seconds (a real bug, seen live — dozens of tracks flashing
+    // through #audio-tracks-playing before it filled with all of them, none
+    // playing). One retry per actual failure, not one per event.
+    let failed = false;
+    function handleFailure() {
+        if (failed) return;
+        failed = true;
         forgetTrack(src, audio);
         startNextTrack();
-    });
-
-    audio.play().catch(() => {
-        forgetTrack(src, audio);
-        startNextTrack();
-    });
+    }
+    audio.addEventListener('error', handleFailure);
+    audio.play().catch(handleFailure);
     gsap.to(audio, { volume: musicVolume, duration: fadeInDuration || FADE_IN_DURATION });
 }
 

@@ -520,6 +520,18 @@ Bill reported the music was playing normally, a new track (`32-reverie-harmonic-
 
 `node --check`. Headless Chrome, `Audio` instances tagged with an id and creation counter: dispatched a real `error` event on one of the two initial tracks and confirmed it was immediately removed from the now-playing list and a replacement track was created and started. Then, mirroring the reported scenario as closely as an automated test can, dispatched `error` on *every* currently-active track at once (the worst case: nothing left to fall back on) and confirmed the engine self-healed with fresh tracks rather than freezing into permanent silence. Zero console errors throughout.
 
+## Session: September 5, 2026 (yet still later) — fix: previous fix caused a retry storm
+
+The previous session's fix (handle a failed track's `error` event and rejected `play()` promise, clean it up, and retry) introduced a new bug of its own: Bill watched `#audio-tracks-playing` rapidly cycle through many different tracks trying to start, then fill up with the entire 79-track list, with nothing actually playing.
+
+**Root cause:** a real media failure commonly fires *both* signals for the same underlying problem — the browser rejects the pending `play()` promise *and* emits an `error` event on the element. `playTrack()` had independent handlers for each, both calling `forgetTrack()` + `startNextTrack()` — so one real failure triggered two retries, and if either of those failed the same way, each spawned two more, and so on: exponential (2, 4, 8, 16, 32, 64...), tearing through and exhausting the entire track list within a handful of generations. That matches exactly what was observed — not a slow-load timing issue (Bill's own hypothesis, reasonable but not what was happening — nothing in the code imposes a premature timeout), but a genuine double-counting bug.
+
+- `js/music.js` — `playTrack()` now guards with a per-instance `failed` boolean so `error` and a rejected `play()` share one `handleFailure()` that only ever runs once per track, regardless of which signal (or both) fires. One retry per actual failure.
+
+### Verified
+
+`node --check`. Headless Chrome: forced a specific track's `play()` to reject *and* dispatch a real `error` event for that same failure (mirroring the real double-signal case) — confirmed exactly one replacement track was created (would have been two under the previous, buggy version), and the display list settled back to a healthy two-tracks-playing state. Zero console errors.
+
 ## Remaining known issues / possible next steps
 
 - **Mobile divider vs. long fan** (minor, cosmetic) — the ≤490px divider is a stable grid border spanning the foundation+tableau rows; a discard fan long enough to overflow that area extends slightly past the bottom of the border. Chosen tradeoff (grid-only, no JS) over the fan-tracking absolute-positioned version. Revisit if it bothers.
