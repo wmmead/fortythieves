@@ -3,6 +3,19 @@
 // way through, the next random track fades in alongside it, and so on
 // indefinitely. Unlike the meaddesign version there's no skip control exposed,
 // only a shared volume slider (see initVolumeSlider below).
+//
+// Every track is routed through one shared AudioContext via
+// createMediaElementSource (mirroring how meaddesign feeds each track into
+// its audioMotion visualizer's context), instead of playing as independent,
+// unconnected <audio> elements. This isn't decorative — iOS Safari has a low
+// ceiling on how many independent, unconnected <audio> elements can play
+// concurrently, and silently fails to start ones beyond it; routing them all
+// through one Web Audio graph makes them read as a single audio session
+// instead of several, which is what meaddesign relies on to sustain 3
+// concurrent tracks reliably. Because output is now routed through Web Audio,
+// per-track volume is controlled on each track's own GainNode (audio.gainNode)
+// rather than on audio.volume directly — the element's own volume property is
+// bypassed once it's connected this way.
 import { MUSIC_TRACKS } from './musicTracks.js';
 /* global gsap */ // gsap is loaded as a global via the <script> tag in index.html
 
@@ -17,6 +30,16 @@ const VOLUME_CHANGE_DURATION = 0.3; // seconds, re-targeting already-playing tra
 const BACKGROUND_FADE_DURATION = 3; // seconds, fading out/in when the tab is hidden/shown
 const VOLUME_KEY = 'musicVolume';
 const DEFAULT_VOLUME = 0.75;
+
+/* ---------- Shared Web Audio context ---------- */
+
+let audioContext = null;
+function getAudioContext() {
+    if (!audioContext) {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    return audioContext;
+}
 
 /* ---------- Playback state ---------- */
 
@@ -80,7 +103,13 @@ function playTrack(src, fadeInDuration) {
 
     const audio = new Audio(src);
     audio.trackSrc = src;
-    audio.volume = 0;
+
+    const ctx = getAudioContext();
+    const gainNode = ctx.createGain();
+    gainNode.gain.value = 0;
+    ctx.createMediaElementSource(audio).connect(gainNode).connect(ctx.destination);
+    audio.gainNode = gainNode;
+
     activeAudioElements.add(audio);
     addActiveTrackName(src);
 
@@ -123,7 +152,7 @@ function playTrack(src, fadeInDuration) {
     }
     audio.addEventListener('error', handleFailure);
     audio.play().catch(handleFailure);
-    gsap.to(audio, { volume: musicVolume, duration: fadeInDuration || FADE_IN_DURATION });
+    gsap.to(gainNode.gain, { value: musicVolume, duration: fadeInDuration || FADE_IN_DURATION });
 }
 
 // No-ops when muted (volume 0) — the single choke point every track start
@@ -141,8 +170,8 @@ function removeRandomActiveTrack(duration) {
 
     const audio = activeList[Math.floor(Math.random() * activeList.length)];
     const src = audio.trackSrc;
-    gsap.to(audio, {
-        volume: 0,
+    gsap.to(audio.gainNode.gain, {
+        value: 0,
         duration,
         onComplete: () => {
             audio.pause();
@@ -158,7 +187,7 @@ function removeRandomActiveTrack(duration) {
 // that's what made the music intermittently fail to come back.
 function pauseAllTracks() {
     activeAudioElements.forEach((audio) => {
-        gsap.killTweensOf(audio);
+        gsap.killTweensOf(audio.gainNode.gain);
         audio.pause();
     });
 }
@@ -166,7 +195,7 @@ function pauseAllTracks() {
 function resumeAllTracks(targetVolume, duration = VOLUME_CHANGE_DURATION) {
     activeAudioElements.forEach((audio) => {
         audio.play().catch(() => {});
-        gsap.to(audio, { volume: targetVolume, duration });
+        gsap.to(audio.gainNode.gain, { value: targetVolume, duration });
     });
 }
 
@@ -185,13 +214,14 @@ function manualFadeVolume(audio, targetVolume, duration, onComplete) {
         clearInterval(audio.fadeIntervalId);
         audio.fadeIntervalId = null;
     }
-    const startVolume = audio.volume;
+    const gain = audio.gainNode.gain;
+    const startVolume = gain.value;
     const startTime = performance.now();
     const durationMs = duration * 1000;
 
     audio.fadeIntervalId = setInterval(() => {
         const t = Math.min(1, (performance.now() - startTime) / durationMs);
-        audio.volume = startVolume + (targetVolume - startVolume) * t;
+        gain.value = startVolume + (targetVolume - startVolume) * t;
         if (t >= 1) {
             clearInterval(audio.fadeIntervalId);
             audio.fadeIntervalId = null;
@@ -204,7 +234,7 @@ function manualFadeVolume(audio, targetVolume, duration, onComplete) {
 // (same "pause, don't discard" reasoning as pauseAllTracks — see above).
 function fadeOutAllTracks(duration) {
     activeAudioElements.forEach((audio) => {
-        gsap.killTweensOf(audio); // in case a gsap-driven fade was mid-flight
+        gsap.killTweensOf(audio.gainNode.gain); // in case a gsap-driven fade was mid-flight
         manualFadeVolume(audio, 0, duration, () => audio.pause());
     });
 }
@@ -259,11 +289,17 @@ document.addEventListener('visibilitychange', handleVisibilityChange);
 // Starts the background music: two tracks begin together (rather than the
 // usual one), then the cascade takes over from there. Call this from inside
 // a user-gesture handler (e.g. the "Play Game" click) so the browser's
-// autoplay policy allows playback. No-op if music is already running; also a
-// no-op (until the volume is raised) if the stored volume is 0.
+// autoplay policy allows playback — this also resumes the shared AudioContext,
+// which iOS/Safari otherwise leaves suspended until a user gesture. No-op if
+// music is already running; also a no-op (until the volume is raised) if the
+// stored volume is 0.
 export function startMusic() {
     if (musicStarted) return;
     musicStarted = true;
+    const ctx = getAudioContext();
+    if (ctx.state === 'suspended') {
+        ctx.resume().catch(() => {});
+    }
     startNextTrack();
     startNextTrack();
 }
@@ -299,7 +335,7 @@ export function setMusicVolume(volume) {
     }
 
     activeAudioElements.forEach((audio) => {
-        gsap.to(audio, { volume: clamped, duration: VOLUME_CHANGE_DURATION });
+        gsap.to(audio.gainNode.gain, { value: clamped, duration: VOLUME_CHANGE_DURATION });
     });
 }
 
