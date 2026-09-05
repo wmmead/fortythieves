@@ -498,6 +498,16 @@ Bill added `<p id="audio-tracks-playing">` (styled in `styles.css`, bottom-left 
 
 `node --check`. Headless Chrome: confirmed the two tracks `startMusic()` begins together both appear in the paragraph immediately, comma-separated in the order they started; forced one to dispatch a real `ended` event and confirmed only that one was removed, leaving the other. Zero console errors.
 
+## Session: September 5, 2026 (later) — regenerated the music track list
+
+Bill swapped a batch of files in `audio/` (removed several, added a new run of `30-`/`32-`/`35-`/`36-`/`37-`/`38-`/`40-`-prefixed tracks) and asked to sync `js/musicTracks.js`'s `MUSIC_TRACKS` array to match — 79 files expected.
+
+- `js/musicTracks.js` — regenerated the array from the actual current contents of `audio/`, alphabetically, replacing the old stale 59-entry list wholesale (many of those files — `07-Fluss.mp3`, `11-soundbox.mp3`, `13-fluss-1/2.mp3`, `18-battlestation.mp3`, etc. — no longer exist in the folder).
+
+### Verified
+
+`diff` between the array's contents and `ls audio/*.mp3` came back empty — exact match, 79 entries both sides. `node --check` on the file.
+
 ## Remaining known issues / possible next steps
 
 - **Mobile divider vs. long fan** (minor, cosmetic) — the ≤490px divider is a stable grid border spanning the foundation+tableau rows; a discard fan long enough to overflow that area extends slightly past the bottom of the border. Chosen tradeoff (grid-only, no JS) over the fan-tracking absolute-positioned version. Revisit if it bothers.
