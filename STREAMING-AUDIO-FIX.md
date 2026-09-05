@@ -1,3 +1,196 @@
+# Streaming MP3 audio engine — porting notes for meaddesign
+
+Written September 5, 2026, after the fortythieves game's background music was rebuilt and confirmed working on the iPad. This file is meant to be dropped into the `meaddesign` folder so the same fix can be applied to that site's cascading audio player. Everything needed is either in this file or named as a file to copy from `fortythieves`.
+
+## 1. The problem this solves
+
+**iPad Safari will not run a third media-element stream.** Every version of the fortythieves player that used `<audio>` elements — plain ones, and later ones routed through Web Audio with `createMediaElementSource` — either failed to start the third track or stuttered trying, and in the worst case dragged all of Safari down until it was force-quit. Desktop browsers never showed any of this.
+
+The limit is on media elements (each one is a heavyweight system media player under the hood), **not** on Web Audio. Web Audio will happily mix dozens of `AudioBufferSourceNode`s at once — the game's card sound effects have always used that path and never had a problem on the iPad.
+
+meaddesign's `audio.js` uses the same `<audio>`-element approach (`new Audio(src)` → `audioMotion.connectInput(audio)`), so it has the same ceiling. It only reaches its third concurrent track about 2.5 minutes in, which is probably why it hasn't been noticed there.
+
+Two other, smaller problems were found and fixed along the way — worth knowing because the old meaddesign code shares one of them:
+
+- **Finished tracks must be fully torn down.** Dropping the JS reference isn't enough; a source node still wired into the graph keeps its element and pipeline alive and rendered every quantum. (meaddesign already does this right via `audioMotion.disconnectInput(audio)`.)
+- **Volume fades should be a single AudioParam ramp, not a GSAP tween.** GSAP writing `audio.volume` (or `gain.value`) ~60×/s from the main thread is fine on desktop, but each write crosses into the audio engine, and it stops entirely in a hidden tab because GSAP runs on `requestAnimationFrame`. A `linearRampToValueAtTime` runs on the audio thread and keeps going while the tab is hidden.
+
+## 2. The fix in one paragraph
+
+Stop using media elements for music. Fetch each mp3 as a normal streamed download, slice the arriving bytes into small chunks, decode each chunk into raw sound with a tiny WebAssembly mp3 decoder (**mpg123-decoder**, one self-contained 79 KB file), gather the decoded sound into ~10-second `AudioBuffer`s, and schedule those as `AudioBufferSourceNode`s so each starts at the exact sample where the previous one ends. Only decode ~20 seconds ahead of the playhead, so memory per track is the compressed file (a few MB) plus ~30 seconds of decoded audio — not the whole decoded track (~85 MB). The tracks become plain buffers in the Web Audio mixer, and the iPad's media-player limit never comes into play.
+
+## 3. What to copy into meaddesign
+
+| Item | From fortythieves | Notes |
+|---|---|---|
+| `mpg123/mpg123-decoder.min.js` + `mpg123/LICENSE` | copy the folder | v1.0.3, MIT. Fully self-contained: the WASM is embedded in the file; no fetch, no separate `.wasm`, no CDN. Can be re-downloaded from `https://cdn.jsdelivr.net/npm/mpg123-decoder@1.0.3/dist/mpg123-decoder.min.js` if needed. |
+| `js/mp3Duration.js` | copy, or paste from §7 | Exact track length by walking mp3 frame headers. Needed because none of the tracks carry a Xing/Info frame count. |
+| `js/audioContext.js` | optional — see §5 | fortythieves shares one context between music and sound effects. meaddesign can simply use `audioMotion.audioCtx` instead. |
+| `js/music.js` | reference only — full source in §7 | The engine. meaddesign's version needs the UI bits (mute, remix, "Playing:" label, visualizer) re-attached; §5 says where. |
+
+**Script tag** — must declare UTF-8, and load before the code that uses it:
+
+```html
+<script src="mpg123/mpg123-decoder.min.js" charset="utf-8" defer></script>
+```
+
+> **Gotcha, seen live:** the decoder embeds its WebAssembly as a high-byte string. The first test page had no charset declaration, the string was mangled on load, and every decode failed with `Decode failed crc32 validation`. meaddesign's `index.html` should already have `<meta charset="UTF-8">`; keep the attribute on the tag anyway.
+
+The library exposes a global: `window['mpg123-decoder'].MPEGDecoder`.
+
+```js
+const decoder = new MPEGDecoder();
+await decoder.ready;                       // WASM compiled
+const { channelData, samplesDecoded, sampleRate } = decoder.decode(uint8ArrayChunk);
+// channelData: Float32Array per channel; chunks may split mp3 frames anywhere — the decoder is stateful.
+decoder.free();                            // when the track is done (own instance method, not on the prototype)
+```
+
+Verified in Chrome: decoding a file in 64 KB slices produces output bit-identical to decoding it whole (same sample count, max per-sample difference 0), at roughly 1500× real time.
+
+## 4. How the engine works, step by step
+
+1. **Fetch as a stream.** `fetch(src)` → `response.body.getReader()`. `Content-Length` (same-origin, so it's readable) is kept as `totalBytes` for the duration estimate. Each delivered `Uint8Array` is pushed onto the track's `queue`, sliced to ≤64 KB pieces so a whole file arriving from the cache in one go can't produce one enormous buffer. Every chunk is also kept in `allChunks` until the download finishes.
+2. **Decode ahead, but not too far.** `pumpTrack()` runs whenever bytes arrive and on a 500 ms scheduler tick. It decodes queued chunks while `secondsAhead + unflushedSeconds < DECODE_AHEAD` (20 s). Decoded channel arrays are copied (`.slice()` — the decoder reuses its output views) into `pcm`.
+3. **Batch and schedule.** When `pcm` holds ≥ `BUFFER_SECONDS` (10 s) of audio, `flushPcm()` builds one `AudioBuffer` (at the mp3's own sample rate — the source node resamples if the context differs), makes an `AudioBufferSourceNode`, connects it to the track's `GainNode`, and starts it at `startTime + scheduledSamples / sampleRate`. That arithmetic (samples, not accumulated float durations) is what keeps every boundary sample-exact. The first buffer starts at `currentTime + 0.1`. If a buffer would be scheduled in the past (network fell behind playback), the track's `startTime` is shifted forward so later buffers stay contiguous instead of overlapping.
+4. **Duration.** When the download completes, `allChunks` is concatenated once and `mp3Duration()` walks the frame headers (a 4-minute file is ~10,000 frames, a few ms). Until then `trackProgress()` estimates: `secondsDecoded × totalBytes / bytesConsumed`. The one-third trigger checks `trackProgress()` on each scheduler tick.
+5. **End of track.** After the last chunk is decoded the remainder is flushed and `decodeDone` is set. Each source's `onended` removes it from `track.sources`; when `decodeDone` and no sources remain, the track has ended. A file that decodes to zero samples is treated as a failure.
+6. **Teardown (`forgetTrack`).** Cancel the reader, `stop()` + `disconnect()` every scheduled source (with `onended` nulled first so it can't fire), disconnect the gain node, `decoder.free()`, drop the queues. Used for a normal end, a prune, and a failure alike. One retry per failure (`handleFailure` guards with a `failed` flag so fetch/decode/empty-file signals can't each retry).
+7. **Fades (`fadeGain`).** `cancelScheduledValues(now)` → `setValueAtTime(currentValue, now)` → `linearRampToValueAtTime(target, now + duration)`. The current value is computed from a per-track `gainRamp` record and the context clock, not read from `gain.value` (its mid-automation behavior has varied between engines). An optional `setTimeout` fires the completion callback; starting a new fade cancels a pending one.
+8. **Mute.** Ramps every gain to 0; the cascade keeps running silently (decoding is cheap), so the mix is continuous when the volume returns. Nothing starts while muted at startup; raising the volume from 0 with nothing active starts the cascade.
+9. **Hidden tab.** `visibilitychange` → ramp every gain to 0 over 3 s → `ctx.suspend()`. The audio clock stops, so every scheduled buffer holds its place. On return: cancel a pending suspend if the fade hadn't finished (never suspend a visible tab), `ctx.resume()` (also clears iOS's `interrupted` state after an app switch; a context that already ran once doesn't need a fresh gesture), ramp back up.
+10. **Concurrency cap.** `startNextTrack()` refuses to exceed `MAX_CONCURRENT_TRACKS` (3); a trigger that arrives while the cap is full increments a bounded `pendingStarts`, which `forgetTrack()` drains the moment a slot frees. The once-a-minute watchdog only restarts the cascade if it dropped to zero.
+
+## 5. meaddesign-specific porting notes
+
+- **Use audioMotion's context as the one shared context.** audioMotion-analyzer creates its own `AudioContext` (`audioMotion.audioCtx`). Don't create a second one — iOS is happiest with one per page. Wherever the engine calls `getAudioContext()`, use `audioMotion.audioCtx`. The existing `audioMotion.audioCtx.resume()` in the play-button click handler is exactly the gesture unlock the engine needs.
+- **Keep the visualizer by feeding it the gain node.** `audioMotion.connectInput()` accepts any `AudioNode`, not just media elements (its source confirms: if the argument isn't an `HTMLMediaElement`, it connects the node directly). So in `createTrack()`, instead of `gainNode.connect(ctx.destination)`, call `audioMotion.connectInput(gainNode)`; in `forgetTrack()`, call `audioMotion.disconnectInput(gainNode)` instead of `gainNode.disconnect()`. The visualizer then sees the mixed music exactly as before. (audioMotion's own output node is already connected to the speakers.)
+- **Volume.** Replace every `gsap.to(audio, { volume })` and the manual `fadeAudioVolume()` with `fadeGain(track, …)`. The mute button becomes: `activeTracks.forEach(t => fadeGain(t, isMuted ? 0 : 1, MUTE_FADE_DURATION))`. GSAP is no longer needed for audio at all (still needed for the page's text/UI animation).
+- **Remix button.** Same shape as before: `removeRandomActiveTrack(REMIX_FADE_DURATION)` then `playTrack(pickRandomTrack(), REMIX_FADE_DURATION)`. With the cap enforced in `startNextTrack()`, call `playTrack` directly here as the old code does, since the prune has just freed a slot (its fade completes 2 s later, so allow the count to briefly sit at cap + 1, or route through `startNextTrack()` and accept the new track starting when the pruned one finishes fading).
+- **"Playing:" label.** Add the label in `playTrack()` and remove it in `forgetTrack()` — the same two points where fortythieves updates its temporary now-playing list.
+- **One seed, not two.** meaddesign starts a single track on the play click; fortythieves starts two. Just call `startNextTrack()` once.
+- **Classic script vs. module.** meaddesign's `audio.js` is a classic `<script defer>`. `mp3Duration.js` is written as an ES module (`export function`). Either switch `audio.js` to `<script type="module">` and `import { mp3Duration } from './mp3Duration.js'`, or paste the function into `audio.js` without the `export` keyword. The engine code itself has no other imports once the context comes from audioMotion.
+- **Hidden tab.** Replace the existing `visibilitychange` handler (manual `setTimeout` fade + `audio.pause()`/`audio.play()`) with the suspend/resume version in §7. Note it respects mute on the way back in by ramping to `isMuted ? 0 : 1`.
+- **Track list.** `AUDIO_TRACKS` stays exactly as it is — a plain array of paths.
+- **Hosting.** Both sites are on the same Apache host, which sends `Content-Length` (used for the progress estimate). HTTP Range support no longer matters — the engine downloads whole files as normal streams.
+
+## 6. Tunables
+
+| Constant | Value | What it does |
+|---|---|---|
+| `DECODE_CHUNK_BYTES` | 64 KB | Compressed bytes per decode call (~3–4 s of audio at these bitrates). |
+| `DECODE_AHEAD` | 20 s | How far ahead of the playhead to keep audio scheduled. Bigger = more memory, more tolerance for a network stall. |
+| `BUFFER_SECONDS` | 10 s | Decoded audio is batched into buffers about this long. Boundaries are sample-exact, but if a faint tick is ever heard at a boundary on Safari (its `start(when)` accuracy wasn't independently verified), raise this. |
+| `SCHEDULER_INTERVAL` | 500 ms | Decode-ahead / trigger check cadence. Throttled to ~1 s in hidden tabs, which `DECODE_AHEAD` easily covers. |
+| `START_LEAD` | 0.1 s | Gap between scheduling a track's first buffer and it sounding. |
+| `MAX_CONCURRENT_TRACKS` | 3 | Hard cap. Web Audio could do far more; three is the musical choice. |
+
+## 7. Full source (fortythieves versions, for reference)
+
+### `js/mp3Duration.js`
+
+```js
+// mp3Duration.js — exact duration of an MP3 from its bytes, without decoding.
+//
+// The music engine streams each track through a WASM decoder in small
+// chunks, so it never has the decoded whole to measure — and none of the
+// tracks carry a Xing/Info header with a frame count. Walking the frame
+// headers instead is cheap (a 4-minute file is ~10,000 frames, a few ms) and
+// exact for constant- and variable-bitrate files alike, because every frame
+// header states its own bitrate and therefore its own length.
+//
+// Handles MPEG 1 / 2 / 2.5, Layer III only (all this project's audio), and
+// skips a leading ID3v2 tag. Returns seconds, or null if no frames are found.
+
+const SAMPLE_RATES = {
+    3: [44100, 48000, 32000], // MPEG 1
+    2: [22050, 24000, 16000], // MPEG 2
+    0: [11025, 12000, 8000],  // MPEG 2.5
+};
+
+// Layer III bitrate tables (kbps), indexed by the header's 4-bit bitrate field.
+const BITRATES_MPEG1 = [0, 32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320, 0];
+const BITRATES_MPEG2 = [0, 8, 16, 24, 32, 40, 48, 56, 64, 80, 96, 112, 128, 144, 160, 0];
+
+export function mp3Duration(bytes) {
+    let pos = 0;
+    if (bytes.length > 10 && bytes[0] === 0x49 && bytes[1] === 0x44 && bytes[2] === 0x33) { // "ID3"
+        const size = (bytes[6] << 21) | (bytes[7] << 14) | (bytes[8] << 7) | bytes[9];
+        pos = 10 + size + ((bytes[5] & 0x10) ? 10 : 0);
+    }
+
+    let seconds = 0;
+    let frames = 0;
+    while (pos + 4 <= bytes.length) {
+        const b1 = bytes[pos + 1];
+        if (bytes[pos] !== 0xFF || (b1 & 0xE0) !== 0xE0) { pos += 1; continue; }
+
+        const version = (b1 >> 3) & 3;          // 3 = MPEG1, 2 = MPEG2, 0 = MPEG2.5, 1 = reserved
+        const layer = (b1 >> 1) & 3;            // 1 = Layer III
+        const bitrateIndex = bytes[pos + 2] >> 4;
+        const sampleRateIndex = (bytes[pos + 2] >> 2) & 3;
+        const padding = (bytes[pos + 2] >> 1) & 1;
+
+        if (version === 1 || layer !== 1 || bitrateIndex === 0 || bitrateIndex === 15 || sampleRateIndex === 3) {
+            pos += 1;
+            continue;
+        }
+
+        const mpeg1 = version === 3;
+        const bitrate = (mpeg1 ? BITRATES_MPEG1 : BITRATES_MPEG2)[bitrateIndex] * 1000;
+        const sampleRate = SAMPLE_RATES[version][sampleRateIndex];
+        const samplesPerFrame = mpeg1 ? 1152 : 576;
+        const frameLength = Math.floor((samplesPerFrame / 8) * bitrate / sampleRate) + padding;
+
+        seconds += samplesPerFrame / sampleRate;
+        frames += 1;
+        pos += frameLength;
+    }
+    return frames > 0 ? seconds : null;
+}
+```
+
+### `js/audioContext.js` (fortythieves only — meaddesign uses `audioMotion.audioCtx`)
+
+```js
+// audioContext.js — the one shared Web Audio context for the whole page.
+//
+// Both the sound effects (audio.js) and the background music (music.js) used
+// to create their own AudioContext. iOS/iPadOS Safari is the platform every
+// audio bug so far has been reported from, and its guidance is consistently
+// "one AudioContext per page": each context is a separate render pipeline
+// competing for the same hardware output, and the OS is happiest when the
+// page presents itself as a single audio session. Sharing one context here
+// also matches how meaddesign's player works — its visualizer library owns a
+// single context that every track and sound runs through.
+//
+// The context is created eagerly (sound effects need it at load time to
+// decode their buffers, which doesn't require a user gesture) and starts out
+// suspended on iOS/Safari and Chrome. unlockAudioContext() resumes it from
+// inside a user gesture — main.js calls it in the "Play Game" click handler.
+
+let audioContext = null;
+
+export function getAudioContext() {
+    if (!audioContext) {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    return audioContext;
+}
+
+export function unlockAudioContext() {
+    const ctx = getAudioContext();
+    if (ctx.state === 'suspended') {
+        ctx.resume().catch(() => {});
+    }
+}
+```
+
+### `js/music.js`
+
+The fortythieves engine in full. The `#audio-tracks-playing` block is a temporary debugging display and can be dropped; the volume-slider functions at the bottom are fortythieves UI and map onto meaddesign's mute button as described in §5.
+
+```js
 // Background music engine, modeled on meaddesign/audio.js: tracks are picked
 // at random and layered in a cascade — once a playing track is a third of the
 // way through, the next random track fades in alongside it, and so on
@@ -535,3 +728,16 @@ export function initVolumeSlider() {
         });
     });
 }
+```
+
+## 8. How it was tested (so meaddesign can be tested the same way)
+
+Headless Chrome driven over the DevTools Protocol (see fortythieves `PROGRESS.md` for the harness). The useful tricks:
+
+- Wrap `window.Audio` to count constructions — the engine must create **zero**.
+- Wrap `AudioBufferSourceNode.prototype.start` to record `(when, buffer.duration)` for every buffer, then check that every non-head buffer's `when` equals some earlier buffer's `when + duration` within 1 µs.
+- `import('/audio.js')`-style dynamic import of the page's own module returns the same module instance, so an exported track array can be spliced down to the three shortest files (61 s, 63 s, 82 s) to fit a whole cascade cycle — start, one-third trigger, natural end, replacement — into about 100 seconds.
+- Fake `document.hidden` and dispatch `visibilitychange` to exercise the suspend/resume path; check `ctx.state`.
+- Clear `localStorage` in a pre-navigation injected script, or a muted setting from one run leaks into the next.
+
+Confirmed on the iPad after deploying: three tracks, no stutter, no hang.

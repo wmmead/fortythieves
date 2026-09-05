@@ -22,15 +22,9 @@ const SOUND_FILES = {
     finishNoWin: 'sndfx/finish-no-win.mp3',
 };
 
-let audioContext = null;
-const buffers = {}; // name -> decoded AudioBuffer, filled in as each file loads
+import { getAudioContext, unlockAudioContext } from './audioContext.js';
 
-function getAudioContext() {
-    if (!audioContext) {
-        audioContext = new (window.AudioContext || window.webkitAudioContext)();
-    }
-    return audioContext;
-}
+const buffers = {}; // name -> decoded AudioBuffer, filled in as each file loads
 
 async function loadBuffer(name, url) {
     const ctx = getAudioContext();
@@ -47,12 +41,10 @@ Object.entries(SOUND_FILES).forEach(([name, url]) => {
 
 // iOS/Safari (and Chrome, to a lesser extent) create the AudioContext
 // suspended until a user gesture resumes it. Call this from inside the
-// "Play Game" click handler, alongside startMusic().
+// "Play Game" click handler, alongside startMusic(). The context is the one
+// shared with the music engine (see audioContext.js).
 export function unlockAudio() {
-    const ctx = getAudioContext();
-    if (ctx.state === 'suspended') {
-        ctx.resume().catch(() => {});
-    }
+    unlockAudioContext();
 }
 
 // Sound effects on/off, remembered across visits via localStorage. Defaults to
