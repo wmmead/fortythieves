@@ -25,6 +25,33 @@ const activeAudioElements = new Set(); // live Audio elements
 let musicStarted = false;
 let musicVolume = loadVolume();
 
+/* ---------- Temporary: visible list of tracks in the rotation ---------- */
+/* Bill added #audio-tracks-playing to watch which files the random cascade
+   picks, to help decide which to keep. Remove this block (and the element in
+   index.html) once that testing is done. */
+
+const activeTrackNames = [];
+
+function trackBasename(src) {
+    return src.split('/').pop();
+}
+
+function renderActiveTrackNames() {
+    const el = document.getElementById('audio-tracks-playing');
+    if (el) el.textContent = activeTrackNames.join(', ');
+}
+
+function addActiveTrackName(src) {
+    activeTrackNames.push(trackBasename(src));
+    renderActiveTrackNames();
+}
+
+function removeActiveTrackName(src) {
+    const index = activeTrackNames.indexOf(trackBasename(src));
+    if (index !== -1) activeTrackNames.splice(index, 1);
+    renderActiveTrackNames();
+}
+
 function loadVolume() {
     const stored = localStorage.getItem(VOLUME_KEY);
     if (stored === null) return DEFAULT_VOLUME;
@@ -47,6 +74,7 @@ function playTrack(src, fadeInDuration) {
     audio.trackSrc = src;
     audio.volume = 0;
     activeAudioElements.add(audio);
+    addActiveTrackName(src);
 
     let triggeredNext = false;
     audio.addEventListener('timeupdate', () => {
@@ -59,6 +87,7 @@ function playTrack(src, fadeInDuration) {
     audio.addEventListener('ended', () => {
         playingTracks.delete(src);
         activeAudioElements.delete(audio);
+        removeActiveTrackName(src);
     });
 
     audio.play().catch(() => {});
@@ -87,6 +116,7 @@ function removeRandomActiveTrack(duration) {
             audio.pause();
             playingTracks.delete(src);
             activeAudioElements.delete(audio);
+            removeActiveTrackName(src);
         }
     });
 }

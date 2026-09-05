@@ -139,7 +139,12 @@ export function setupEventListeners() {
     });
 
     // --- HOLD HEADER FOR 2 SECONDS HANDLER ---
-    const header = document.querySelector('h1');
+    // Scoped to main's h1 specifically — the page now has other <h1>s too
+    // (the intro overlay's title, the instructions popup's title), and a
+    // bare 'h1' selector grabs whichever comes first in document order
+    // (the intro's, which is hidden by the time the game is playable),
+    // silently binding this to an inert element.
+    const header = document.querySelector('main h1');
     let holdTimer = null;
     const holdDuration = 2000;
 

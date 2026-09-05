@@ -466,6 +466,38 @@ Bill restyled the menu himself after the previous session, restoring the hamburg
 
 Headless Chrome screenshot of the exact seam area, before and after: confirmed the dark shadow arc that was visibly smudged across the list panel's bottom-right corner is gone, while the tab itself still shows its shadow on the outer (right/bottom) edges.
 
+## Session: September 4, 2026 (later still) — disable text/element selection globally
+
+Bill noticed elements sometimes getting selected (as if to copy) during play, which shouldn't happen in a game with no text meant to be selected.
+
+- `styles.css` — the global `* { box-sizing: border-box; }` rule gained `user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;`. Doesn't touch click/tap handling at all (that's pointer events, a separate mechanism from selection) — only suppresses drag-to-select and, via `-webkit-touch-callout`, iOS's long-press copy/select callout, which is likely exactly what Bill was seeing on iPad. A handful of narrower `user-select: none` declarations already existed on specific elements elsewhere in the file; they're now redundant under the global rule but harmless, so left alone rather than touching unrelated code.
+
+### Verified
+
+Headless Chrome: confirmed `user-select` computes to `none` globally (checked on `<body>` and a `.card`), and that clicking a card still selects it and clicking the menu button still opens the menu — click/tap behavior is completely unaffected.
+
+## Session: September 4, 2026 (final) — fix: long-press-the-logo for Olen mode was silently dead
+
+Bill reported the 2-second long-press-the-header trick for toggling Olen mode had stopped working.
+
+**Root cause:** `js/events.js`'s hold-header handler bound its listeners with a bare `document.querySelector('h1')`. The page now has three `<h1>` elements (the intro overlay's title, the main game logo header, and the instructions popup's title) — `querySelector('h1')` always returns the *first* one in document order, which is the intro overlay's (`#intro` comes before `#container` in the DOM). That element gets hidden once "Play Game" is clicked, so the long-press listeners were bound to an inert, invisible element the entire time gameplay was actually happening. This was a latent bug from whenever the intro overlay was first added — likely never noticed since Olen mode is an undocumented, rarely-used debug feature.
+
+- `js/events.js` — changed to `document.querySelector('main h1')`, which unambiguously targets the game logo header (the only `h1` inside `<main>`).
+
+### Verified
+
+`node --check`. Headless Chrome over the DevTools Protocol, `window.prompt` stubbed to record calls and auto-answer `'true'`: confirmed a 2.1s mouse hold on the logo now correctly triggers the prompt and sets `#olenmode`'s text to "Olen mode"; a short 0.3s press does not (checked well past the 2s threshold, ruling out a delayed fire); and a 2.1s *touch* hold (via `Input.dispatchTouchEvent` with touch emulation enabled) triggers it too, confirming the fix holds for the actual iPad interaction path, not just mouse. Zero console errors.
+
+## Session: September 5, 2026 — temporary now-playing track display
+
+Bill added `<p id="audio-tracks-playing">` (styled in `styles.css`, bottom-left of `#container`) to watch which mp3s the random music cascade picks while he decides which tracks to keep. Explicitly temporary — he'll remove the element and this wiring once done testing.
+
+- `js/music.js` — new `activeTrackNames` array + `addActiveTrackName()`/`removeActiveTrackName()`/`renderActiveTrackNames()`, hooked into the exact points where a track already enters/leaves `activeAudioElements`: added in `playTrack()` when a track starts, removed in the `ended` listener and in `removeRandomActiveTrack()`'s prune `onComplete`. Renders as filenames only (`audio/07-Fluss.mp3` → `07-Fluss.mp3`), comma-separated, into `#audio-tracks-playing`'s `textContent`. Deliberately doesn't touch the mute/background-pause paths — a paused-but-still-queued track stays listed, since the point is watching which files rotate through, not literal audible-right-now state.
+
+### Verified
+
+`node --check`. Headless Chrome: confirmed the two tracks `startMusic()` begins together both appear in the paragraph immediately, comma-separated in the order they started; forced one to dispatch a real `ended` event and confirmed only that one was removed, leaving the other. Zero console errors.
+
 ## Remaining known issues / possible next steps
 
 - **Mobile divider vs. long fan** (minor, cosmetic) — the ≤490px divider is a stable grid border spanning the foundation+tableau rows; a discard fan long enough to overflow that area extends slightly past the bottom of the border. Chosen tradeoff (grid-only, no JS) over the fan-tracking absolute-positioned version. Revisit if it bothers.
