@@ -5,6 +5,7 @@ import { startMusic, initVolumeSlider } from './music.js';
 import { initSfxToggle, unlockAudio } from './audio.js';
 import { preloadCardImages } from './preload.js';
 import { initResumeOverlay } from './resumeOverlay.js';
+import { initShortcutHints } from './shortcutHints.js';
 
 // Wait for the DOM to be fully loaded, then wait for the player to click
 // "Play Game" on the intro overlay before starting the game. Gating the deal
@@ -13,6 +14,7 @@ import { initResumeOverlay } from './resumeOverlay.js';
 window.addEventListener('DOMContentLoaded', () => {
     initSfxToggle(); // live immediately — the intro switch is usable before "Play Game" is clicked
     initVolumeSlider(); // same for the volume slider
+    initShortcutHints(); // labels the menu buttons with their keyboard shortcuts
     const playButton = document.getElementById('play-game');
     if (!playButton) return;
 

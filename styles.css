@@ -363,6 +363,26 @@ h1 span:last-of-type {
     clip-path: inset(0 -20px -20px 0);
 }
 
+/* Keyboard shortcut hints on the menu's undo and new-game buttons, added by
+   js/shortcutHints.js. The button's own wording lives in .btn-label so that
+   the two can be sized and coloured independently; margin-left:auto pushes
+   the shortcut to the far edge rather than changing .action-bttn's own
+   layout, which is shared with the intro, win and resume screens. */
+.action-bttn .shortcut {
+    margin-left: auto;
+    padding-left: 0.75rem;
+    opacity: 0.5;
+    font-size: 85%;
+    font-weight: 400;
+    white-space: nowrap;
+}
+
+/* The Command and Option glyphs are noticeably smaller than the surrounding
+   letters in this font stack; nudged up so they read as the same size. */
+.platform-mac .action-bttn .shortcut {
+    font-size: 95%;
+}
+
 #menu ul li {
     margin-bottom: 10px;
 }
@@ -599,7 +619,8 @@ h1 span:last-of-type {
 #divider {
     grid-row: 4;
     grid-column: 1 / -1;
-    background-image: url(images/background6.jpg);
+    /* background-image: url(images/background6.jpg); */
+    background-color: rgba(33, 18, 86, 0.8);
     height: 15px;
     border-radius: 5px;
 }

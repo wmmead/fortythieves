@@ -38,6 +38,7 @@ export function setupEventListeners() {
         const confirmOk = e.target.closest('#confirm-ok');
         const confirmCancel = e.target.closest('#confirm-cancel');
         const hamburgermenu = e.target.closest('#hamburgermenu');
+        const newGame = e.target.closest('.newgame');
         const howToPlay = e.target.closest('#howtoplay');
         const closeInstr = e.target.closest('#closeinstructions');
 
@@ -94,6 +95,12 @@ export function setupEventListeners() {
             closeConfirmDialog();
             return;
         }
+        if (newGame) {
+            e.preventDefault(); // they're <a href="#">; don't jump to the top of the page
+            playNewGameSound();
+            startNewGame(); // closes the menu itself
+            return;
+        }
         if (candidate && selectedCard) {
             moveCardToCandidate(candidate, selectedCard);
         } else if (card && !card.classList.contains('temp') && !card.classList.contains('candidate')) {
@@ -120,6 +127,21 @@ export function setupEventListeners() {
             handleUndoRequest();
             updateUndoButtonText();
         }
+        // Cmd+Option+N (Mac) / Ctrl+Alt+N (Windows) starts a new game, same as
+        // every .newgame button. Cmd/Ctrl+N is the browser's own new-window
+        // shortcut and isn't ours to take, and Cmd/Ctrl+Shift+N opens a private
+        // window in Chrome and Edge — hence the Option/Alt combination.
+        //
+        // Matched on e.code, not e.key: holding Option on macOS rewrites the
+        // character the browser reports, and Option+N specifically is the dead
+        // key that composes the tilde in "ñ", so e.key is never 'n' here.
+        // e.code names the physical key and is unaffected. (The undo shortcut
+        // above can safely use e.key because Option isn't part of it.)
+        if ((e.metaKey || e.ctrlKey) && e.altKey && !e.shiftKey && e.code === 'KeyN') {
+            e.preventDefault();
+            playNewGameSound();
+            startNewGame(); // closes the menu itself
+        }
     });
 
     // Add double-click event for auto-move
@@ -128,14 +150,6 @@ export function setupEventListeners() {
         if (card && !card.classList.contains('temp') && !card.classList.contains('candidate')) {
             handleCardDoubleClick(card);
         }
-    });
-
-    document.querySelectorAll('.newgame').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            e.preventDefault(); // it's an <a href="#">; don't jump to the top of the page
-            playNewGameSound();
-            startNewGame();
-        });
     });
 
     // --- HOLD HEADER FOR 2 SECONDS HANDLER ---

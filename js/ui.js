@@ -428,7 +428,15 @@ export function updateDeckCounter() {
 export function updateUndoButtonText() {
     const undoBtn = document.getElementById('undo');
     if (undoBtn) {
-        undoBtn.textContent = 'undo last move';
+        // The button may carry a keyboard-shortcut span (js/shortcutHints.js),
+        // in which case its wording lives in .btn-label — writing the whole
+        // button's textContent here would throw the hint away with it.
+        const label = undoBtn.querySelector('.btn-label');
+        if (label) {
+            label.textContent = 'undo last move';
+        } else {
+            undoBtn.textContent = 'undo last move';
+        }
         undoBtn.classList.toggle('disabled', !canUndo());
     }
 }
@@ -477,9 +485,9 @@ export function showWinScreen( winType ) {
     const tableau = document.querySelector('#tableau-container');
     tableau.className = 'win-container';
     if( winType === 'clear'){
-        message = `<img src="images/club-diamond-characters.png" alt="club and diamond" class="thieves"><h2>You built the foundations,<br>but the thieves stole some<br>of your points</h2><img src="images/spade-heart-characters.png" alt="spade and heart" class="thieves">`;
+        message = `<img src="images/club-diamond-characters.png" alt="club and diamond" class="thieves"><div><h2>You built the foundations,<br>but the thieves stole some<br>of your points</h2><a href="#" class="newgame action-bttn">new game</a></div><img src="images/spade-heart-characters.png" alt="spade and heart" class="thieves">`;
     } else {
-        message = `<img src="images/club-diamond-characters.png" alt="club and diamond" class="thieves"><h2>Congratulations!<br>You won and scored all<br>the possible points!</h2><img src="images/spade-heart-characters.png" alt="spade and heart" class="thieves">`;
+        message = `<img src="images/club-diamond-characters.png" alt="club and diamond" class="thieves"><div><h2>Congratulations!<br>You won and scored all<br>the possible points!</h2><a href="#" class="newgame action-bttn">new game</a></div><img src="images/spade-heart-characters.png" alt="spade and heart" class="thieves">`;
     }
     tableau.innerHTML = `<div id="win" class="pop">
                 ${message}

@@ -708,6 +708,50 @@ Bill's iPad report: the resume overlay works and desktop is right, but two audio
 
 **The residue is the floor, and it's accepted.** What's left in both cases (refresh, and the resume button) is the same thing: audio already handed to the OS output buffer at the moment we set the gain to zero. A gain write takes effect at the next render quantum, but samples already queued for the hardware — on the order of 10-20 ms on iOS — play out regardless. Nothing in JavaScript can flush that buffer, so this is genuinely irreducible without leaving audio playing longer, not shorter. Bill's assessment: "so short, I don't think most people would even notice it." Not worth further work.
 
+## Session: September 6, 2026 — every `.newgame` button works, wherever it comes from
+
+Bill added "new game" buttons to the win screen (`showWinScreen()` in `js/ui.js`, both the `clear` and `win` variants) and asked for them to be wired up — suggesting that everything with the class `newgame` should behave the same way. It should, and now does.
+
+**Why the new buttons did nothing:** `js/events.js` bound them with `document.querySelectorAll('.newgame').forEach(...)` at init time. That only ever sees elements present when the listeners are attached. The win screen's buttons are written into `#tableau-container` with `innerHTML` when a game ends, long after that, so they never got a listener. The menu's button worked purely because it happens to exist in the initial HTML.
+
+- `js/events.js` — the startup-time binding is gone. `.newgame` is now handled in the delegated `document` click handler that already routes the deck, undo, hamburger, reset-stats and card clicks: a `const newGame = e.target.closest('.newgame')` lookup alongside the others, and a branch that calls `playNewGameSound()` then `startNewGame()`. Because it matches on the class at click time, any `.newgame` element works — the menu's, the two win-screen ones, and anything added later — with no wiring step to remember. `startNewGame()` already calls `closeMenu()` itself, so the branch doesn't repeat it.
+
+### Verified
+
+`node --check`. Headless Chrome over the DevTools Protocol: the menu button still works (board redealt, menu auto-closed); the win screen's button works in **both** message variants, each clearing the win screen, rebuilding all 10 tableau sections and dealing 40 cards; a second win screen in the same session works too (confirming delegation rather than a one-shot binding); and `location.hash` is unchanged after clicking, so the `href="#"` doesn't jump the page. Zero console errors.
+
+**Two testing notes, both harness problems that looked like product bugs.** First, clicking by `getBoundingClientRect()` centre without re-checking is unsafe here: the win screen relays out as it appears, and a stale coordinate silently landed on a paragraph, making a working button look dead. The click helper now scrolls the target into view, re-measures, and asserts `document.elementFromPoint()` actually resolves to the element before dispatching — it turns a silent miss into a loud failure. Second, that assertion then failed for a real reason: `maybeAutoShowInstructions()` opens the how-to-play popup two seconds after the deal on a first visit, and since every test run clears `localStorage`, every run *is* a first visit — the popup was covering the win screen. Seeding `localStorage.instructionsSeen = 'true'` in the pre-navigation script suppresses it. Any future UI test in this project should do both.
+
+## Session: September 6, 2026 (later) — keyboard shortcut for a new game
+
+Bill asked which key command to use for starting a new game, ruling out Cmd/Ctrl+N since that's the browser's new-window shortcut. Recommendation given: **F2** is the genre standard (Windows Solitaire, FreeCell, Spider and Minesweeper have used it since the early nineties) but serves Mac laptops poorly, where the function keys default to hardware controls; **Cmd+Option+N / Ctrl+Alt+N** is free in Chrome, Safari and Firefox, matches the existing Cmd+Z/Ctrl+Z undo binding, and behaves identically on both platforms. Cmd/Ctrl+Shift+N was ruled out (private window in Chrome and Edge), and a bare `N` was argued against because abandoning a game mid-play leaves it in the statistics — only zero-move records get cleaned up by `deleteZeroMoveRecords()`. Bill chose the modifier combination and explicitly declined a confirmation dialog, not being worried about accidental presses.
+
+- `js/events.js` — new branch in the existing `keydown` handler, beside the undo shortcut: `(e.metaKey || e.ctrlKey) && e.altKey && !e.shiftKey && e.code === 'KeyN'` → `playNewGameSound()` + `startNewGame()` (which closes the menu itself), with `preventDefault()`.
+
+**Why `e.code` and not `e.key` here:** holding Option on macOS rewrites the character the browser reports, and Option+N specifically is the dead key that composes the tilde in "ñ" — so `e.key` is **never** `'n'` for this combination and a `e.key.toLowerCase() === 'n'` test would silently never fire on the platform Bill uses. `e.code` names the physical key and is unaffected by modifiers or layout. The undo shortcut directly above can keep using `e.key` because Option isn't part of it; the difference is deliberate, not an inconsistency.
+
+### Verified
+
+`node --check`. Headless Chrome over the DevTools Protocol, dispatching real key events with the modifier bitmask (Ctrl 2, Alt 1, Meta 4, Shift 8) and marking the existing cards with a data attribute first, so a genuine re-deal is distinguishable from nothing happening. **macOS case dispatched with `key: '˜'`** — the character the OS actually reports for Option+N, i.e. the exact input that would defeat an `e.key` test — and it started a new game: all 40 marked cards gone, 40 fresh ones dealt. Windows `Ctrl+Alt+N` (reported as `'n'`) likewise. Six negatives all correctly did nothing: Cmd+N alone, Ctrl+N alone, plain N, Option+N alone, Cmd+Option+**Shift**+N, and Cmd+Option+**M**. The shortcut also works from the win screen. Zero console errors.
+
+**Not done (worth considering):** the game documents no keyboard shortcuts anywhere — neither this one nor the existing Cmd+Z undo appears in the how-to-play popup, so both are effectively undiscoverable. A short "keyboard shortcuts" line in the instructions would fix that for both at once.
+
+## Session: September 6, 2026 (final) — keyboard shortcut hints on the menu buttons
+
+Bill asked for the shortcuts to appear in the menu button text, formatted per platform, hidden on mobile, and not on the win screen's buttons. He explicitly said he wasn't worried about the hints appearing on an iPad without a keyboard, asked for HTML entities rather than pasted symbols, and asked for a span around the key text so it can be styled separately.
+
+- New `js/shortcutHints.js` — `initShortcutHints()`, called from `main.js` on `DOMContentLoaded`. `detectPlatform()` returns `touch` / `mac` / `pc` from `navigator.userAgentData.platform`, `navigator.platform` and the user-agent string together. **Phones are tested for first**, because an Android device reports "Linux" and an iPhone reports "Mac OS X", so either would be misread by the later tests. `pc` covers Windows, Linux and ChromeOS, which all use Ctrl+Alt. iPadOS reports as a Mac and is deliberately left that way: an iPad with a Magic Keyboard genuinely takes these shortcuts and Mac symbols are genuinely the right ones there.
+- The modifier glyphs are written as HTML entities (`&#8984;` Command, `&#8997;` Option) so the source stays plain ASCII and nothing depends on the file's encoding surviving an editor or FTP round trip.
+- Each hint goes in `<span class="shortcut">`, and the button's existing wording is moved into `<span class="btn-label">` beside it. Selectors are scoped to `#menu`, so the win screen's `.newgame` buttons stay plain.
+- `js/ui.js` — `updateUndoButtonText()` writes into `.btn-label` when it exists, falling back to the whole button otherwise. **This was a real trap:** that function sets `undoBtn.textContent` on every move, new game and Cmd+Z, which would have silently deleted the hint the first time the undo state changed.
+- `styles.css` — `.action-bttn .shortcut` uses `margin-left: auto` to sit at the far edge rather than changing `.action-bttn`'s own layout, which is shared with the intro, win and resume screens. A `.platform-mac` rule bumps the glyph size slightly, since the Command and Option symbols render smaller than the surrounding letters. `initShortcutHints()` also puts `platform-mac` / `platform-pc` on `<html>` so the two can be styled apart later.
+
+### Verified
+
+`node --check`. Headless Chrome over the DevTools Protocol with `Network.setUserAgentOverride` to impersonate each platform: **macOS** → `⌘Z` and `⌘⌥N` with `platform-mac` on `<html>`; **Windows** → `Ctrl+Z` and `Ctrl+Alt+N` with `platform-pc`; **iPhone** and **Android** → no hints at all and no platform class; **iPad** (desktop UA, `MacIntel`) → Mac symbols, as intended. In every case the win screen's buttons had zero hints, and "how to play", "reset your stats" and "Play Game" were untouched. After a full deal and the undo-state refresh that follows it, both hints were still present — the `updateUndoButtonText()` fix holding. Screenshot of the rendered menu sent to Bill; the glyphs render correctly through font fallback. Zero console errors.
+
+**Still open (Bill's call):** the hint styling is deliberately plain — 50% opacity, 85% size — and he mentioned the fonts may need adjusting. `.action-bttn .shortcut` and `.platform-mac .action-bttn .shortcut` are the two hooks. Also unaddressed: the ⌘ glyph announces as "place of interest sign" in some screen readers, so if that matters, the span wants `aria-hidden` plus a visually-hidden text alternative.
+
 ## Remaining known issues / possible next steps
 
 - **A ~10-20 ms audio remnant on reload and on the resume button** (iPad only, accepted) — the OS output buffer drains after the master gain is cut; see the September 5 master-gain session. Irreducible from JavaScript, and below the threshold Bill considers noticeable.
