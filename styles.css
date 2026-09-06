@@ -377,6 +377,23 @@ h1 span:last-of-type {
     white-space: nowrap;
 }
 
+/* Available to screen readers, invisible on screen and taking no space, so
+   the shortcut can be announced in words while the glyphs are shown. The
+   1px-and-clipped approach rather than display:none or visibility:hidden,
+   both of which would remove it from the accessibility tree as well. */
+.visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    border: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+}
+
 /* The Command and Option glyphs are noticeably smaller than the surrounding
    letters in this font stack; nudged up so they read as the same size. */
 .platform-mac .action-bttn .shortcut {

@@ -750,7 +750,41 @@ Bill asked for the shortcuts to appear in the menu button text, formatted per pl
 
 `node --check`. Headless Chrome over the DevTools Protocol with `Network.setUserAgentOverride` to impersonate each platform: **macOS** → `⌘Z` and `⌘⌥N` with `platform-mac` on `<html>`; **Windows** → `Ctrl+Z` and `Ctrl+Alt+N` with `platform-pc`; **iPhone** and **Android** → no hints at all and no platform class; **iPad** (desktop UA, `MacIntel`) → Mac symbols, as intended. In every case the win screen's buttons had zero hints, and "how to play", "reset your stats" and "Play Game" were untouched. After a full deal and the undo-state refresh that follows it, both hints were still present — the `updateUndoButtonText()` fix holding. Screenshot of the rendered menu sent to Bill; the glyphs render correctly through font fallback. Zero console errors.
 
-**Still open (Bill's call):** the hint styling is deliberately plain — 50% opacity, 85% size — and he mentioned the fonts may need adjusting. `.action-bttn .shortcut` and `.platform-mac .action-bttn .shortcut` are the two hooks. Also unaddressed: the ⌘ glyph announces as "place of interest sign" in some screen readers, so if that matters, the span wants `aria-hidden` plus a visually-hidden text alternative.
+**Still open (Bill's call):** the hint styling is deliberately plain — 50% opacity, 85% size — and he mentioned the fonts may need adjusting. `.action-bttn .shortcut` and `.platform-mac .action-bttn .shortcut` are the two hooks.
+
+### Follow-up (same day) — screen-reader wording for the shortcuts
+
+Bill asked for the `aria-hidden` and spoken alternative flagged above.
+
+- `js/shortcutHints.js` — each entry in `HINTS` now carries both `keys` (drawn) and `spoken` (announced): `Command Z` / `Command Option N` on a Mac, `Control Z` / `Control Alt N` elsewhere. The visible `.shortcut` span gets `aria-hidden="true"`, and a `<span class="visually-hidden">keyboard shortcut: …</span>` is appended after it. Both the glyphs and the written form need this — U+2318 announces as "place of interest sign" in several screen readers, and "Ctrl+Z" tends to come out as an attempted word plus "plus".
+- `styles.css` — new `.visually-hidden` utility using the 1px-and-clipped pattern rather than `display: none` or `visibility: hidden`, either of which would remove the text from the accessibility tree along with the display.
+
+### Verified
+
+`node --check`. Headless Chrome over the DevTools Protocol, reading the **browser's own computed accessible names** via `Accessibility.queryAXTree` — the actual string a screen reader announces, not just the markup. macOS: `"undo last move keyboard shortcut: Command Z"` and `"new game keyboard shortcut: Command Option N"`. Windows: `"undo last move keyboard shortcut: Control Z"` and `"new game keyboard shortcut: Control Alt N"`. The glyphs appear in neither, confirming the `aria-hidden` takes. "how to play" and "reset your stats" are unchanged. The hidden span measures 1×1 and is absolutely positioned, so it costs no layout.
+
+**Testing note:** the first three attempts at this returned an empty or ignored accessibility tree and looked like a real defect. The cause was the test, not the page: `#container` is `display: none` until "Play Game" is clicked, so nothing in the menu exists in the accessibility tree before the game starts. Any future accessibility query in this project has to deal the game first.
+
+**Incidental finding — since resolved:** at the time of this check `#resetstats` was an `<a>` with no `href`, so it had no `link` role and appeared in the accessibility tree only as static text. Bill added `href="#"` in commit 6afee51 and it now comes through as a link like the other menu items. Noted so the observation above isn't read as still outstanding.
+
+## Session: September 6, 2026 (later) — new-game shortcut moved from N to G
+
+Bill tested the shortcut on an iPad with a Magic Keyboard: **Ctrl+Option+G's predecessor, Ctrl+Option+N, worked, but Cmd+Option+N didn't** — Safari on iPadOS claims that combination for its own window handling and it never reaches the page (it looked like every tab closing; almost certainly a new Safari window taking over the view). Cmd+Option+N does work in Safari on macOS, so only the iPad was affected. The Ctrl variant worked because the handler accepts either modifier, which was meant as cross-platform tolerance rather than an iPad accommodation.
+
+The obvious patch was to detect an iPad and label it differently. **Bill spotted why that's a bad bet:** the standard way to tell an iPad from a Mac is `navigator.maxTouchPoints > 1`, and a touchscreen MacBook — widely rumoured for this year or next — would report touch points exactly as an iPad does. The heuristic wouldn't merely weaken, it would invert, on the precise hardware that's coming.
+
+So the combination changed instead, which removes the need for that detection rather than making it more fragile. Bill confirmed on the device that Cmd+Option+G does nothing in Safari on iPadOS, so one combination is now correct on every Apple platform, one hint is correct everywhere, and a touchscreen MacBook is simply a Mac showing Mac symbols. (`D` was ruled out because Cmd+Option+D toggles the Dock system-wide on macOS, and `R` because the Option and Shift variants of reload are taken by Safari and Chrome.)
+
+- `js/events.js` — `e.code === 'KeyN'` → `'KeyG'`, with the comment rewritten to record why N was abandoned. The `e.code` reasoning still holds and is now more concrete: Option+G on macOS reports the copyright sign, so `e.key` is never `'g'` here.
+- `js/shortcutHints.js` — the new-game hint is `⌘⌥G` / `Ctrl+Alt+G`, spoken as "Command Option G" / "Control Alt G". The comment about iPadOS reporting as a Mac now explains that leaving it uncorrected is the durable choice, not a shrug.
+
+**Confirmed clear on all four combinations of platform and browser Bill uses:** Safari on iPadOS (nothing happens on a bare press), Safari on macOS, and Chrome on macOS all leave Cmd+Option+G to the page.
+
+**No permanent guarantee:** any browser can claim any combination in a future version, exactly as iPadOS did with N. What this buys is the removal of a detection we could already predict would break, and a single combination verified on both Apple platforms.
+
+### Verified
+
+`node --check`, and a grep confirming no stale `KeyN` / `Alt+N` / `Option N` references survive anywhere in `js/`. Headless Chrome over the DevTools Protocol: **Cmd+Option+G dispatched with `key: '©'`** — the character macOS actually reports for Option+G, i.e. the exact input that would defeat an `e.key` test — dealt a new game, as did Ctrl+Alt+G. Five negatives were correctly ignored: the retired Cmd+Option+N, Cmd+G (find next), plain G, Option+G alone, and Cmd+Option+Shift+G. Hints read `⌘⌥G` on macOS and on an iPad user agent, `Ctrl+Alt+G` on Windows; the computed accessible names from `Accessibility.queryAXTree` came back as "new game keyboard shortcut: Command Option G" and "…Control Alt G". Zero console errors.
 
 ## Remaining known issues / possible next steps
 

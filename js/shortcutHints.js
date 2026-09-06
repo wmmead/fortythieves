@@ -10,10 +10,13 @@
 // costs nothing — the shortcuts work regardless of what's detected, so a
 // missing or superfluous hint is the whole downside.
 //
-// Note that iPadOS reports itself as a Mac (desktop user agent since iPadOS
-// 13, and navigator.platform of "MacIntel"), and that's left alone on
-// purpose: an iPad with a Magic Keyboard really does take these shortcuts,
-// and the Mac symbols really are the right ones to show there.
+// iPadOS reports itself as a Mac (desktop user agent since iPadOS 13, and a
+// navigator.platform of "MacIntel"), and that is deliberately not corrected
+// for. An iPad with a Magic Keyboard takes the same shortcuts a Mac does and
+// wants the same symbols, so there is nothing to distinguish. Keeping it that
+// way is also what makes this durable: the usual way to tell an iPad from a
+// Mac is to check for touch points, which a touchscreen MacBook would report
+// too, so any code relying on that would misfire on Apple's next laptop.
 
 // Apple's modifier symbols are written as HTML entities rather than pasted in
 // literally, so the source stays plain ASCII and nothing depends on the file's
@@ -21,10 +24,24 @@
 const COMMAND = '&#8984;'; // U+2318, the Command key
 const OPTION = '&#8997;';  // U+2325, the Option key
 
+// `keys` is what's drawn; `spoken` is what a screen reader says instead. The
+// glyphs are useless read aloud — U+2318 announces as "place of interest sign"
+// in several screen readers — and even the written-out form fares badly, since
+// "Ctrl+Z" tends to come out as an attempt at a word plus "plus". So the
+// visible span is hidden from assistive tech and this wording is exposed in
+// its place.
 const HINTS = [
     // Scoped to #menu so the win screen's .newgame buttons are untouched.
-    { selector: '#menu #undo', mac: `${COMMAND}Z`, pc: 'Ctrl+Z' },
-    { selector: '#menu .newgame', mac: `${COMMAND}${OPTION}N`, pc: 'Ctrl+Alt+N' },
+    {
+        selector: '#menu #undo',
+        mac: { keys: `${COMMAND}Z`, spoken: 'Command Z' },
+        pc: { keys: 'Ctrl+Z', spoken: 'Control Z' },
+    },
+    {
+        selector: '#menu .newgame',
+        mac: { keys: `${COMMAND}${OPTION}G`, spoken: 'Command Option G' },
+        pc: { keys: 'Ctrl+Alt+G', spoken: 'Control Alt G' },
+    },
 ];
 
 // 'touch' means don't show a hint at all; 'mac' and 'pc' pick the wording.
@@ -60,11 +77,22 @@ export function initShortcutHints() {
         label.className = 'btn-label';
         label.textContent = button.textContent.trim();
 
+        const { keys, spoken } = platform === 'mac' ? mac : pc;
+
         const hint = document.createElement('span');
         hint.className = 'shortcut';
-        hint.innerHTML = platform === 'mac' ? mac : pc; // fixed strings from HINTS above
+        hint.innerHTML = keys; // fixed strings from HINTS above
+        // Hidden from assistive tech in favour of the spoken wording below.
+        hint.setAttribute('aria-hidden', 'true');
+
+        // Off-screen but readable: this is what actually reaches a screen
+        // reader, and it lands after the button's own wording, so the button
+        // announces as e.g. "new game, keyboard shortcut: Command Option G".
+        const spokenHint = document.createElement('span');
+        spokenHint.className = 'visually-hidden';
+        spokenHint.textContent = `keyboard shortcut: ${spoken}`;
 
         button.textContent = '';
-        button.append(label, hint);
+        button.append(label, hint, spokenHint);
     });
 }

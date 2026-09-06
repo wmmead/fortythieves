@@ -127,17 +127,25 @@ export function setupEventListeners() {
             handleUndoRequest();
             updateUndoButtonText();
         }
-        // Cmd+Option+N (Mac) / Ctrl+Alt+N (Windows) starts a new game, same as
-        // every .newgame button. Cmd/Ctrl+N is the browser's own new-window
-        // shortcut and isn't ours to take, and Cmd/Ctrl+Shift+N opens a private
-        // window in Chrome and Edge — hence the Option/Alt combination.
+        // Cmd+Option+G (Mac) / Ctrl+Alt+G (Windows) starts a new game, same as
+        // every .newgame button.
+        //
+        // Cmd/Ctrl+N is the browser's own new-window shortcut and isn't ours to
+        // take; Cmd/Ctrl+Shift+N opens a private window in Chrome and Edge.
+        // Cmd+Option+N was the first choice and does work on macOS, but Safari
+        // on iPadOS claims it for its own window handling, so an iPad with a
+        // Magic Keyboard never saw it. G is free on both. That matters for more
+        // than the iPad: one combination that works everywhere means one hint
+        // that's correct everywhere, with no need to tell an iPad apart from a
+        // Mac — a distinction that is about to stop being reliable anyway, since
+        // a touchscreen MacBook would report touch points exactly as an iPad does.
         //
         // Matched on e.code, not e.key: holding Option on macOS rewrites the
-        // character the browser reports, and Option+N specifically is the dead
-        // key that composes the tilde in "ñ", so e.key is never 'n' here.
-        // e.code names the physical key and is unaffected. (The undo shortcut
-        // above can safely use e.key because Option isn't part of it.)
-        if ((e.metaKey || e.ctrlKey) && e.altKey && !e.shiftKey && e.code === 'KeyN') {
+        // character the browser reports (Option+G gives the copyright sign), so
+        // e.key is never 'g' here. e.code names the physical key and is
+        // unaffected by modifiers or layout. (The undo shortcut above can safely
+        // use e.key because Option isn't part of it.)
+        if ((e.metaKey || e.ctrlKey) && e.altKey && !e.shiftKey && e.code === 'KeyG') {
             e.preventDefault();
             playNewGameSound();
             startNewGame(); // closes the menu itself
