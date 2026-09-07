@@ -83,15 +83,6 @@ export const TEXTURES = [
     { src: 'images/tiles/stars-bright-glow.png', name: 'stars-bright', tile: true, tileSize: 1000, strength: 1.07 }
 ];
 
-/* The earlier speckle-grain set, kept for swapping back in:
-   pass `{ textures: GRAIN_TEXTURES }` to createBackground(). */
-export const GRAIN_TEXTURES = [
-    { src: 'images/tiles/grain-fine.png', name: 'grain-fine', tile: true, tileSize: 500, strength: 0.71 },
-    { src: 'images/tiles/grain-medium.png', name: 'grain-medium', tile: true, tileSize: 500, strength: 1.05 },
-    { src: 'images/tiles/grain-coarse.png', name: 'grain-coarse', tile: true, tileSize: 500, strength: 1.30 },
-    { src: 'images/tiles/grain-sand.png', name: 'grain-sand', tile: true, tileSize: 500, strength: 1.15 }
-];
-
 const DEFAULTS = {
     mount: null,                  // defaults to document.body
     zIndex: -1,

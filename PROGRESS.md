@@ -786,6 +786,47 @@ So the combination changed instead, which removes the need for that detection ra
 
 `node --check`, and a grep confirming no stale `KeyN` / `Alt+N` / `Option N` references survive anywhere in `js/`. Headless Chrome over the DevTools Protocol: **Cmd+Option+G dispatched with `key: '©'`** — the character macOS actually reports for Option+G, i.e. the exact input that would defeat an `e.key` test — dealt a new game, as did Ctrl+Alt+G. Five negatives were correctly ignored: the retired Cmd+Option+N, Cmd+G (find next), plain G, Option+G alone, and Cmd+Option+Shift+G. Hints read `⌘⌥G` on macOS and on an iPad user agent, `Ctrl+Alt+G` on Windows; the computed accessible names from `Accessibility.queryAXTree` came back as "new game keyboard shortcut: Command Option G" and "…Control Alt G". Zero console errors.
 
+## Session: September 7, 2026 — animated star-field background (Bill's work, documented here after the fact)
+
+Built in a separate scratch project (`~/Desktop/backgroundtest`, which has its own long `README.md` covering the design reasoning and the tile-generation scripts) and ported into the game in commit `5c632fe`. That folder is scratch and may not survive, so the parts the *game* depends on are recorded here rather than left as a pointer.
+
+Granim gradients in the style of meaddesign, plus a star-field texture that cross-fades and slowly wheels overhead. Three `<canvas>` layers for the gradients and two `<div>` layers that swap star textures above them, all inside one `.bgfx` container.
+
+### What was added
+
+| added | |
+| --- | --- |
+| `js/background.js` | the whole effect, one exported `createBackground()`. No dependency but Granim. |
+| `background.css` | the five layer rules it needs |
+| `granim/granim.min.js` | the gradient library |
+| `images/tiles/stars-*.png` | eight seamless 1000px star fields (four fields, each in glow and dark ink), 280 KB total |
+
+### How it's wired — three edits
+
+- `index.html` — the stylesheet, plus `granim.min.js` **deliberately not deferred**, so the `Granim` global exists before the module script runs.
+- `js/main.js` — `createBackground()` at **module scope**, not inside `DOMContentLoaded`, so the sky is behind the intro overlay from the first frame instead of appearing a beat later. The handle is parked on `window.background`.
+- `styles.css` — dropped `body`'s `background: url(images/background5.jpg)`; `#container`'s tint went from `rgba(137, 126, 207, 0.53)` to `0.25` so more sky shows through (the board is translucent, so it tints with the gradients — that's intended, not a bug); `.menu-btn` grew from 55px to 70px with padding moved to the top, adjusting the hamburger tab against the new background.
+
+### Things not to "fix" later
+
+These are all notes for editing `js/background.js` itself. **The game exposes no background controls to the player** — the blend-mode and opacity panel lives only in the scratch project's test page, and the `setLayerBlend`/`setTextureBlend` methods below are console-only. Nothing here is reachable by someone playing the game.
+
+- **Layer 1's blend mode is always `normal`, and can't be anything else.** `.bgfx` sets `isolation: isolate`, so the bottom layer has an empty backdrop, and blending against an empty backdrop returns the source unchanged. Setting it to `soft-light` is a no-op, not a subtle effect. Layers 2 and 3 are the ones that do anything.
+- **The texture blend mode is pinned to `luminosity` on purpose.** Re-rolling it per texture change was what made swaps read as an event, since mode and opacity jumped together. Pinned, a swap is only ever a change of star field.
+- **The rotation animation is applied once at creation and texture swaps leave it alone.** Restarting it on a swap would cross-fade the same sky at two different angles.
+- **The rotating texture layer is a large square, not viewport-sized** (2926px on a 1464x904 window), because rotating a viewport-sized div sweeps its own corners into view. It's recomputed on resize and clipped by `overflow: hidden`.
+- **`body` and `html` must stay free of `transform`, `filter` and `perspective`.** Any of those on an ancestor re-anchors `position: fixed` to that element, which would break both the no-scrollbar and the full-coverage guarantees below. Worth remembering if the game ever grows a page-level transform.
+
+### Console handle
+
+`window.background` exposes `pause()` / `play()` (gradients, texture changes and rotation together — worth calling if a heavy animation ever needs the GPU back), `nextTexture()`, `setTextureIntensity()`, `setTextureBlend()`, `setTexturesEnabled()`, `setLayerBlend()`, `setLayerOpacity()`, `setSpeedScale()`, `describe()` and `destroy()`.
+
+### Verified
+
+Checked in the game itself over the DevTools Protocol, not in the scratch project's test page. The `Granim` global is present by the time the module runs and `window.background` carries the full API. The container is `position: fixed`, `z-index: -1`, `overflow: hidden`, `isolation: isolate`, holding 3 gradient canvases and 2 texture layers, both running the `bgfx-spin` animation. **Adds no scrollbar:** `documentElement.scrollWidth/scrollHeight` measured 1464x904 with the container in the DOM and 1464x904 with it removed — identical, despite the rotating layer being 2926px square. **Covers the viewport at every scroll position:** with the page forced tall enough to scroll, the container's rect was `(0, 0, 1464, 904)` at four different scroll offsets. `html` and `body` carry no `transform`, `filter` or `perspective`. `pause()` puts both texture layers into `animationPlayState: paused`. Under emulated `prefers-reduced-motion: reduce` the rotation is `none`. No console errors and no failed requests (the only 404 is the test harness's `favicon.ico`).
+
+**Grain textures removed.** The port copied only the star tiles, not the 1.16 MB grain set, leaving `GRAIN_TEXTURES` in `js/background.js` naming four `images/tiles/grain-*.png` files that were never in the project. Bill confirmed the star direction is settled and the grain set isn't wanted, so the export was deleted rather than documented as a trap. Nothing referenced it, and a grep now finds no mention of `grain` anywhere in the project. The definitions survive in the scratch project if they're ever needed again.
+
 ## Remaining known issues / possible next steps
 
 - **A ~10-20 ms audio remnant on reload and on the resume button** (iPad only, accepted) — the OS output buffer drains after the master gain is cut; see the September 5 master-gain session. Irreducible from JavaScript, and below the threshold Bill considers noticeable.
