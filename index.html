@@ -13,8 +13,15 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Jomhuria&family=PT+Sans+Narrow:wght@400;700&display=swap" rel="stylesheet">
     
+    <!-- Animated background (gradients + star fields) -->
+    <link rel="stylesheet" href="background.css?v=1.0">
+
     <!-- My Styles -->
     <link rel="stylesheet" href="styles.css?v=5.0">
+
+    <!-- Not deferred: js/background.js reads the Granim global, and a module
+         script always runs after parsing, so this is guaranteed to be ready. -->
+    <script src="granim/granim.min.js"></script>
 
     <script src="gsap/gsap.min.js" defer></script>
     <script src="mpg123/mpg123-decoder.min.js" charset="utf-8" defer></script>

@@ -1,0 +1,62 @@
+/* ============================================================
+   Layered animated background — the only styles the effect needs.
+   Copy this file (and background.js + granim + images/tiles) into any
+   project; nothing here touches the host page's own rules.
+   ============================================================ */
+
+.bgfx {
+    position: fixed;
+    inset: 0;
+    overflow: hidden;         /* clips the oversized rotating texture layers */
+    pointer-events: none;
+
+    /* Keeps every mix-blend-mode below contained in this stack, so the
+       effect looks the same no matter what the host page paints. */
+    isolation: isolate;
+}
+
+.bgfx__grad {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+}
+
+/* Texture layers are NOT inset to the viewport. When they rotate they have
+   to be a square big enough to still cover the viewport at every angle, so
+   background.js sets left/top/width/height explicitly and re-does it on
+   resize. Without rotation it falls back to filling the viewport. */
+.bgfx__tex {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+
+    opacity: 0;
+    transition: opacity 6000ms ease-in-out;
+    will-change: opacity, transform;
+    transform-origin: 50% 50%;
+}
+
+/* The square is centred on the pivot, so rotating about its own centre
+   rotates the star field about the pivot. */
+@keyframes bgfx-spin {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(360deg); }
+}
+
+/* Used only when rotation is off — a slow ken-burns so a still field
+   doesn't sit completely dead. The two can't coexist: both drive
+   `transform`, and the later animation would simply win. */
+@keyframes bgfx-drift {
+    from { transform: scale(1.06) translate3d(-1.5%, -1%, 0); }
+    to   { transform: scale(1.14) translate3d(1.5%, 1.5%, 0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .bgfx__tex {
+        transition-duration: 1200ms;
+        animation: none !important;
+    }
+}

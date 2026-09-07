@@ -6,6 +6,17 @@ import { initSfxToggle, unlockAudio } from './audio.js';
 import { preloadCardImages } from './preload.js';
 import { initResumeOverlay } from './resumeOverlay.js';
 import { initShortcutHints } from './shortcutHints.js';
+import { createBackground } from './background.js';
+
+// Animated background. Started at module scope rather than inside
+// DOMContentLoaded so the sky is already there behind the intro overlay
+// rather than appearing a beat later — a module script runs after parsing,
+// so document.body exists by now.
+//
+// It mounts one fixed, z-index:-1 container that clips its own contents, so
+// it can never add a scrollbar and never scrolls away from the board.
+// Kept on window so it can be paused or inspected from the console.
+window.background = createBackground();
 
 // Wait for the DOM to be fully loaded, then wait for the player to click
 // "Play Game" on the intro overlay before starting the game. Gating the deal
