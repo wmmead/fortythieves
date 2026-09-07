@@ -827,6 +827,19 @@ Checked in the game itself over the DevTools Protocol, not in the scratch projec
 
 **Grain textures removed.** The port copied only the star tiles, not the 1.16 MB grain set, leaving `GRAIN_TEXTURES` in `js/background.js` naming four `images/tiles/grain-*.png` files that were never in the project. Bill confirmed the star direction is settled and the grain set isn't wanted, so the export was deleted rather than documented as a trap. Nothing referenced it, and a grep now finds no mention of `grain` anywhere in the project. The definitions survive in the scratch project if they're ever needed again.
 
+## Session: September 7, 2026 (later) — fix: the new-game shortcut could deal on top of a running deal
+
+Bill found that pressing Cmd+Option+G twice in quick succession started a second deal immediately and played the deal sound twice, and asked which of three directions to take: cut the sound short and restart, queue the second deal, or refuse it outright. He leaned to refusing. That's right, and for a stronger reason than simplicity — **the game already refuses; the shortcut was the one route that escaped it.** `startNewGame()` raises a full-screen `pointerEvents: all` blocker at z-index 9999 for the whole deal, so the menu button and the win-screen buttons are already unable to start a second one. A `keydown` listener on `document` never sees an overlay, so the keyboard was the only way through.
+
+**The doubled sound was the audible tell of something worse.** `distributeCards()` `shift()`s cards off `shuffledDeck`, and `startNewGame()` refills that same array in place (`shuffledDeck.length = 0; push(...)`). A second call mid-deal therefore leaves the first loop still pulling from the refilled deck, into a board the second call has already cleared — one 40-card array consumed by two interleaved loops. Queueing the second deal would have left that untouched and merely delayed it; interrupting would have made the keyboard behave differently from every button.
+
+- `js/game.js` — module-level `dealing` flag with an `isDealing()` export. `startNewGame()` returns immediately if a deal is running, and its body moved inside a `try` whose `finally` clears the flag **and** calls `unblockUserInteraction()`. That second part fixes a latent problem of its own: a failure mid-deal previously left the board permanently covered by the blocker. `initGame()` holds the flag for the first deal too — nothing can reach `startNewGame()` during it today, since `setupEventListeners()` runs at the end of that function, but that's an accident of ordering rather than a guarantee.
+- `js/events.js` — both `.newgame` routes (the delegated click branch and the keydown branch) check `isDealing()` before `playNewGameSound()`. The guard inside `startNewGame()` stops the deal, but the sound is played by the caller, so without this a press during a deal would still be audible with nothing behind it.
+
+### Verified
+
+`node --check`. Headless Chrome over the DevTools Protocol, with `AudioBufferSourceNode.prototype.start` instrumented and filtered by buffer duration to separate sound effects from the ~10s music buffers (the deal sound is 7.88s, the new-game sound 0.29s). **Two presses 400ms apart:** exactly one deal sound and one new-game sound, board settling at 40 cards — previously two of each with two interleaved deal loops. Mid-deal sampling confirmed the blocker up and the board partially dealt, as expected. **Five presses in a row during one deal:** still exactly one deal sound and one new-game sound, 40 cards. **A press after the deal completes still deals normally.** Zero console errors.
+
 ## Remaining known issues / possible next steps
 
 - **A ~10-20 ms audio remnant on reload and on the resume button** (iPad only, accepted) — the OS output buffer drains after the master gain is cut; see the September 5 master-gain session. Irreducible from JavaScript, and below the threshold Bill considers noticeable.

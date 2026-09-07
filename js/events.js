@@ -1,6 +1,6 @@
 import { moveCardToCandidate, drawCard, refreshDeck, handleCardClick, handleCardDoubleClick, handleUndoRequest } from './gameActions.js';
 
-import { startNewGame, selectedCard, setStatsDisplayFlag, setOlenMode, canUndo } from './game.js';
+import { startNewGame, isDealing, selectedCard, setStatsDisplayFlag, setOlenMode, canUndo } from './game.js';
 
 import { clearSelection, updateUndoButtonText, resetGameStatsInfo, updateDeckCounter, toggleMenu, closeMenu, olenModeDisplay, openInstructions, closeInstructions, openConfirmDialog, closeConfirmDialog, stackCards, setSectionHeights, stackDiscard, updateCardImageDirectory } from './ui.js';
 
@@ -97,6 +97,10 @@ export function setupEventListeners() {
         }
         if (newGame) {
             e.preventDefault(); // they're <a href="#">; don't jump to the top of the page
+            // startNewGame() refuses to run mid-deal on its own, but the sound
+            // is played here, so it needs the same check or a press during a
+            // deal would still be audible with nothing behind it.
+            if (isDealing()) return;
             playNewGameSound();
             startNewGame(); // closes the menu itself
             return;
@@ -147,6 +151,10 @@ export function setupEventListeners() {
         // use e.key because Option isn't part of it.)
         if ((e.metaKey || e.ctrlKey) && e.altKey && !e.shiftKey && e.code === 'KeyG') {
             e.preventDefault();
+            // Same check as the button route above. This is the path the bug
+            // came in by: the interaction blocker stops clicks during a deal,
+            // but a keydown listener on document never sees it.
+            if (isDealing()) return;
             playNewGameSound();
             startNewGame(); // closes the menu itself
         }

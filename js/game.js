@@ -122,16 +122,38 @@ const cardValues = [
 /* ============================================================================
    INITIALIZATION & SETUP
 ============================================================================ */
+// True while cards are being dealt. The pointer routes into startNewGame() are
+// already covered by the interaction blocker, but a keydown listener doesn't
+// care about an overlay, so the keyboard shortcut could start a second deal on
+// top of a running one. That's worse than the doubled deal sound it announced
+// itself with: distributeCards() shift()s cards off shuffledDeck, and
+// startNewGame() refills that same array in place, so a second call mid-deal
+// leaves the first loop pulling from the refilled deck into a board the second
+// call has already cleared — 40 cards split across two interleaved loops.
+let dealing = false;
+
+export function isDealing() {
+    return dealing;
+}
+
 export async function initGame() {
-    updateUndoButtonText();
-    await distributeCards(shuffledDeck);
-    updateDeckCounter();
-    stackDiscard(); // size the (empty) discard zone now that card dimensions are known
-    deleteZeroMoveRecords();
-    updateGameStatsInfo();
-    createNewGameRecord();
-    setupEventListeners();
-    maybeAutoShowInstructions(); // first-visit only: opens 2s after the deal completes
+    // Held for the first deal too. Nothing can reach startNewGame() during it
+    // today, since setupEventListeners() runs at the end of this function, but
+    // that's an accident of ordering rather than a guarantee.
+    dealing = true;
+    try {
+        updateUndoButtonText();
+        await distributeCards(shuffledDeck);
+        updateDeckCounter();
+        stackDiscard(); // size the (empty) discard zone now that card dimensions are known
+        deleteZeroMoveRecords();
+        updateGameStatsInfo();
+        createNewGameRecord();
+        setupEventListeners();
+        maybeAutoShowInstructions(); // first-visit only: opens 2s after the deal completes
+    } finally {
+        dealing = false;
+    }
 }
 
 export function setSelectedCard(value) {
@@ -139,48 +161,57 @@ export function setSelectedCard(value) {
 }
 
 export async function startNewGame() {
+    // Never deal on top of a deal already in progress (see `dealing` above).
+    if (dealing) return;
+    dealing = true;
     // close the menu before the interaction blocker goes up, or it stays stuck open while cards deal
     closeMenu();
     // block user interaction while deck is created
     blockUserInteraction();
-    resetMain();
-    // Clear all tableau sections, foundations, and discard pile
-    clearBoard();
-    // Shrink the discard background to the empty (one-card) size right away, so it
-    // animates down immediately instead of staying full-width through the deal.
-    stackDiscard();
-    // Create a completely new shuffled deck from the original cardValues
-    const newDeck = shuffleDeck(cardValues);
-    shuffledDeck.length = 0;
-    shuffledDeck.push(...newDeck);
-    // Reset deckDepleted flag
-    setDeckDepleted(false);
-    // Reset deck and discard containers
-    const deckDiv = getContainerById('deck') || getContainerById('refresh') || getContainerById('empty');
-    restoreDeck(deckDiv)
-    // determine what is shown in the stats window
-    if(statsDisplayFlag){
-        const mostRecentGame = lastGameData();
-        updateEndGameStats(mostRecentGame.gamesPlayed, mostRecentGame.gamesWon, mostRecentGame.averageScore);
-    } else {
-        updateGameStatsInfo();
+    try {
+        resetMain();
+        // Clear all tableau sections, foundations, and discard pile
+        clearBoard();
+        // Shrink the discard background to the empty (one-card) size right away, so it
+        // animates down immediately instead of staying full-width through the deal.
+        stackDiscard();
+        // Create a completely new shuffled deck from the original cardValues
+        const newDeck = shuffleDeck(cardValues);
+        shuffledDeck.length = 0;
+        shuffledDeck.push(...newDeck);
+        // Reset deckDepleted flag
+        setDeckDepleted(false);
+        // Reset deck and discard containers
+        const deckDiv = getContainerById('deck') || getContainerById('refresh') || getContainerById('empty');
+        restoreDeck(deckDiv)
+        // determine what is shown in the stats window
+        if(statsDisplayFlag){
+            const mostRecentGame = lastGameData();
+            updateEndGameStats(mostRecentGame.gamesPlayed, mostRecentGame.gamesWon, mostRecentGame.averageScore);
+        } else {
+            updateGameStatsInfo();
+        }
+        setStatsDisplayFlag(false);
+        deleteZeroMoveRecords();
+        // reset score and undo state to zero
+        score = 0;
+        moveHistory.length = 0;
+        undoUsed = false;
+        gameOver = false;
+        updateUndoButtonText();
+        // update score display
+        updateScoreDisplay(score);
+        // Deal new cards and reinitialize UI
+        await distributeCards(shuffledDeck);
+        updateDeckCounter();
+        stackDiscard(); // re-size the (now empty) discard zone for the fresh board
+        createNewGameRecord();
+    } finally {
+        // In the finally so a failure mid-deal can't leave the board
+        // permanently covered by the blocker with the flag stuck on.
+        dealing = false;
+        unblockUserInteraction();
     }
-    setStatsDisplayFlag(false);
-    deleteZeroMoveRecords();
-    // reset score and undo state to zero
-    score = 0;
-    moveHistory.length = 0;
-    undoUsed = false;
-    gameOver = false;
-    updateUndoButtonText();
-    // update score display
-    updateScoreDisplay(score);
-    // Deal new cards and reinitialize UI
-    await distributeCards(shuffledDeck);
-    updateDeckCounter();
-    stackDiscard(); // re-size the (now empty) discard zone for the fresh board
-    unblockUserInteraction();
-    createNewGameRecord();
 }
 
 /* ============================================================================
