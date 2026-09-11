@@ -135,13 +135,35 @@ h1 span:last-of-type {
     text-align: center;
 }
 
+/* The deck slot once the deck and the discard are both gone. JS gives it one of
+   the two classes below (see updateEmptyDeckState in js/ui.js): .auto-complete
+   when every card left on the tableau can reach a foundation, so tapping the slot
+   plays the game out; .continue-player when some are still out of order and the
+   tap does nothing but say so. Both use the same placeholder graphic for now. */
 #empty {
     grid-row: 5;
-    background-image: url(images/thief-heart.png);
+    /* Same box as #deck / #refresh. Without it this slot has no width or
+       aspect-ratio of its own and collapses to zero height at <=490px, where
+       nothing else occupies row 5 to give it one — which left the graphic
+       invisible and, now that the slot is tappable, the tap target gone. */
+    width: 90%;
+    aspect-ratio: 500 / 726;
+    place-self: center;
     background-size: 60%;
     background-position: center;
     background-repeat: no-repeat;
     opacity: 0.5;
+}
+
+#empty.continue-player {
+    background-image: url(images/empty-thief.png);
+    background-size: contain;
+}
+
+#empty.auto-complete {
+    background-image: url(images/up-arrow.png);
+    background-size: contain;
+    cursor: pointer;
 }
 
 #container {
@@ -967,6 +989,11 @@ section {
   transform: none;
 }
 
+.center-text {
+    justify-content: center;
+    opacity: 0.75;
+}
+
 .win-container {
     height: 200px;
 }
@@ -1182,7 +1209,7 @@ section {
         height: auto;
     }
 
-    #deck {
+    #deck, #empty {
         grid-row: 2;
         grid-column: 1;
         align-self: start; /* sit at the top of the strip, beside the first foundation */

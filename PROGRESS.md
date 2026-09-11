@@ -840,10 +840,50 @@ Bill found that pressing Cmd+Option+G twice in quick succession started a second
 
 `node --check`. Headless Chrome over the DevTools Protocol, with `AudioBufferSourceNode.prototype.start` instrumented and filtered by buffer duration to separate sound effects from the ~10s music buffers (the deal sound is 7.88s, the new-game sound 0.29s). **Two presses 400ms apart:** exactly one deal sound and one new-game sound, board settling at 40 cards — previously two of each with two interleaved deal loops. Mid-deal sampling confirmed the blocker up and the board partially dealt, as expected. **Five presses in a row during one deal:** still exactly one deal sound and one new-game sound, 40 cards. **A press after the deal completes still deals normally.** Zero console errors.
 
+## Session: September 10, 2026 — tap the empty deck to finish the game
+
+Once the deck and the discard are both gone the deck slot becomes `#empty` and shows a small graphic. Bill asked for it to become a button: tap it and the game plays itself out to the foundations, one card at a time, with the same animation a hand-played move gets.
+
+### The premise that needed correcting first
+
+Bill's framing was that `#empty` "means that everything on the tableau can move to the foundations." It doesn't. `#empty` appears the moment both piles are exhausted, which can happen well before the endgame, and on that board a greedy "send up everything a foundation will take" sweep **costs the player points** — every card sent up is a card no longer available as a tableau stacking target, so a player who consolidates by hand first can finish higher. In a game whose whole stated point is maximizing the stats, that matters.
+
+Bill chose to gate it: the tap only ever runs when it can finish the board, and the slot says which state it's in. He asked for the state to be carried as a class on the same div so he can draw a different graphic for each.
+
+### How it works
+
+- **`canAutoComplete()` (`js/game.js`)** — takes a snapshot of the tableau and the foundation tops as plain objects and greedily simulates foundation-only play. True if that empties the tableau. Moves nothing and touches no DOM. Greedy is a sound decider here: a foundation move only raises a pile's top and uncovers the card beneath, so it can never remove a move that was available before, and foundations aren't assigned to suits, so it never matters which of two equivalent piles a card goes to. If any foundation-only ordering clears the board, greedy does.
+- **`updateEmptyDeckState()` (`js/ui.js`)** — puts `.auto-complete` or `.continue-player` on `#empty`. Cheap enough (≤ 40 cards) to just re-run after every move rather than reason about when it could have changed, and it returns immediately when `#empty` isn't in the DOM — which is every move of a normal game. Called from `handleDOMAfterMove` (so every move), from `handleEmptyDeckAndDiscard`, `setRefreshToEmpty`, and the undo paths.
+- **`autoCompleteToFoundations()` (`js/gameActions.js`)** — refuses with a message if `canAutoComplete()` is false, otherwise raises the interaction blocker and chains moves through `moveCardToCandidate`, which gained an optional third `onComplete` argument. Each move therefore goes through the identical path a click takes: same animation, same landing sound, same scoring, same move history. The chain stops when no move is left, which is also how it stops after the last card — `checkWinCondition` has by then replaced the tableau with the win screen, so the next scan finds nothing.
+- **`js/events.js`** — a `#empty` branch in the delegated click handler, beside `#deck` and `#refresh`.
+- **`styles.css`** — `#empty`'s `background-image` moved into `#empty.continue-player` and `#empty.auto-complete`, both pointing at the existing `thief-heart.png` placeholder until Bill draws the two graphics.
+
+### Two pre-existing bugs fixed along the way
+
+- **`#empty` had zero height at ≤ 490px.** It only ever set `grid-row: 5`, taking its size from whatever else shared row 5 — and in the mobile layout nothing does, because `#deck` and `#discard` are both moved to rows 2–3. The graphic has never been visible on a phone. Harmless while the slot was decoration, fatal once it's a tap target, so `#empty` now carries the same `width: 90%` / `aspect-ratio: 500 / 726` / `place-self: center` box as `#deck` and `#refresh`, and joins `#deck` in the ≤ 490px rule that moves it to the top of the left strip.
+- **Undoing the play of the discard's last card left the slot stuck on `#empty`.** `handleDOMAfterMove` turns `#refresh` into `#empty` when the discard empties, and nothing turned it back. The player was left unable to buy the deck back — and, now, looking at a slot offering to finish a game that still has a card in the discard. `undoBoardMove` restores it with `setDeckRefresh`.
+
+`restoreDeck` and `setDeckRefresh` both strip the two classes, so a new game or a deck refresh can't leave a stale one behind.
+
+### Verified
+
+Headless Chrome over the DevTools Protocol against a temporary harness page (a copy of `index.html` whose module entry builds a known board and exposes state; both files deleted after). `node --check` on all four modules.
+
+- **Full clear:** eight complete descending runs, 104 cards, two sections empty. One tap → 104 cards to the foundations one at a time, score 728, win screen, blocker removed, no temp candidates left over, no console errors.
+- **Refusal:** a board with a 2 buried under its own 3 and a loose ace. Greedy would have played the ace and stranded; the tap made **zero** moves and showed the message instead.
+- **Live state flip:** from that same stranded board, moving the 3 to an empty section by hand (real clicks through the select→candidate path) flipped the slot from `.continue-player` to `.auto-complete` with no reload, and the next tap cleared it.
+- **Re-entrancy:** ten programmatic taps, five of them fired mid-sequence — programmatic clicks ignore the interaction blocker, so this is harder than a real tap can manage — still produced exactly one sequence, 104 cards, 728.
+- **Real pointer input at 460px:** dispatched through `Input.dispatchMouseEvent` rather than `element.click()`; ran to a full clear, and a second real tap mid-run was absorbed by the blocker as intended.
+- **Geometry at 1400 / 850 / 600 / 460 / 390px:** the slot is a non-zero, hit-testable box in both states at every width (`elementFromPoint` at its center returns it), `cursor: pointer` only on `.auto-complete`.
+- **New game** hands back a plain `#deck` with no class stuck on it; **undo of a discard play** hands back `#refresh` with its cost text and no leftover classes.
+
+A full 104-card clear takes about 32 seconds at the manual 0.3s-per-move animation speed. That's the worst case — a real finish has most cards already up — but if it drags, the move rate is the dial.
+
 ## Remaining known issues / possible next steps
 
 - **A ~10-20 ms audio remnant on reload and on the resume button** (iPad only, accepted) — the OS output buffer drains after the master gain is cut; see the September 5 master-gain session. Irreducible from JavaScript, and below the threshold Bill considers noticeable.
 
 - **Mobile divider vs. long fan** (minor, cosmetic) — the ≤490px divider is a stable grid border spanning the foundation+tableau rows; a discard fan long enough to overflow that area extends slightly past the bottom of the border. Chosen tradeoff (grid-only, no JS) over the fan-tracking absolute-positioned version. Revisit if it bothers.
 - **Foundation-move affordability can strand a game** (see August 26 session) — narrow edge case, matches the deck-refresh cost design (the undo cost it also mirrored was removed August 27); revisit only if it proves annoying in practice.
+- **Auto-complete needs its two graphics** (September 10) — `#empty.auto-complete` and `#empty.continue-player` both still point at the `thief-heart.png` placeholder. Bill is drawing the real pair.
 - No other tracked items. (Done June 23: mobile discard layout, discard zone styling, undo-of-a-discard-play jump. Done August 29: first-load autoplay block on `full-deal.mp3`, fixed by gating the initial deal behind the new intro overlay's "Play Game" click.)

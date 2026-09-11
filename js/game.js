@@ -1,5 +1,5 @@
 // Import UI update functions for card stacking, layout, and deck counter
-import { stackCards, setSectionHeights, createCardElement, blockUserInteraction, unblockUserInteraction, setDeckRefresh, setRefreshToEmpty, restoreDeck, clearBoard, updateUndoButtonText, updateDeckCounter, getContainerById, getClassElements, findCardInContainer, moveCardElement, updateCardPosition, stackDiscard, showError, updateScoreDisplay, showWinScreen, resetMain, updateGameStatsInfo, updateEndGameStats, closeMenu, maybeAutoShowInstructions } from './ui.js';
+import { stackCards, setSectionHeights, createCardElement, blockUserInteraction, unblockUserInteraction, setDeckRefresh, setRefreshToEmpty, restoreDeck, clearBoard, updateUndoButtonText, updateDeckCounter, getContainerById, getClassElements, findCardInContainer, moveCardElement, updateCardPosition, stackDiscard, showError, updateScoreDisplay, showWinScreen, resetMain, updateGameStatsInfo, updateEndGameStats, closeMenu, maybeAutoShowInstructions, updateEmptyDeckState } from './ui.js';
 import { getCardMoveDelta, animateCardMove, animateMoveFrom } from './animation.js';
 import { setupEventListeners } from './events.js';
 import { createNewGameRecord, updateCurrentGameStats, deleteZeroMoveRecords, getGameStatistics } from './stats.js';
@@ -42,6 +42,7 @@ MOVE HANDLING & VALIDATION
 --------------------------
 - isValidTableauMove(card, targetCard): Validate if a move to a tableau is legal.
 - isValidFoundationMove(card, targetCard): Validate if a move to a foundation is legal.
+- canAutoComplete(): Simulate foundation-only play; true if it would empty the tableau.
 - recordDrawMove(cardId): Record a move from deck to discard in move history.
 - recordMove(card, fromContainer, targetContainer): Record a generic card move in move history.
 - handleMoveHistory(action, move): Add, undo, or peek at move history.
@@ -310,6 +311,61 @@ export function isValidFoundationMove(card, targetCard) {
     return suit === targetSuit && value === targetValue + 1;
 }
 
+/**
+ * Could every card still on the tableau reach a foundation, using foundation
+ * moves alone? This is what the empty-deck tap is offered on: once the deck and
+ * the discard are both gone the only moves that score are tableau -> foundation,
+ * so if this is true the game can be played out to a finish with no judgement
+ * left to exercise, and if it's false the player still has tableau arranging to
+ * do first.
+ *
+ * Pure simulation over a snapshot — it moves no cards and touches no DOM. Greedy
+ * order is safe to decide this with: a foundation move only ever raises a pile's
+ * top card and uncovers the card beneath it, so it can never take away a move
+ * that was available before, and the foundations aren't assigned to suits, so it
+ * never matters which of two equivalent piles a card goes to. If any sequence of
+ * foundation moves clears the board, the greedy one does.
+ */
+export function canAutoComplete() {
+    const sections = [...document.querySelectorAll('section')].map(section =>
+        [...section.querySelectorAll('.card:not(.temp)')].map(readCard)
+    );
+    // Each foundation reduced to just its top card (or null when it's empty).
+    const piles = [...foundations].map(foundation => {
+        const cards = foundation.querySelectorAll('.card:not(.temp)');
+        return cards.length ? readCard(cards[cards.length - 1]) : null;
+    });
+
+    let moved = true;
+    while (moved) {
+        moved = false;
+        for (const section of sections) {
+            const card = section[section.length - 1];
+            if (!card) continue;
+            const pile = piles.findIndex(top => foundationAccepts(card, top));
+            if (pile === -1) continue;
+            piles[pile] = section.pop();
+            moved = true;
+        }
+    }
+    return sections.every(section => section.length === 0);
+}
+
+// A card element reduced to the two values the simulation cares about.
+function readCard(card) {
+    return {
+        suit: card.getAttribute('data-suit'),
+        value: parseInt(card.getAttribute('data-value'), 10)
+    };
+}
+
+// Same rule as isValidFoundationMove, against a plain object instead of an
+// element, and with the empty-foundation case (an ace) folded in.
+function foundationAccepts(card, top) {
+    if (!top) return card.value === 1;
+    return card.suit === top.suit && card.value === top.value + 1;
+}
+
 export function recordDrawMove(cardId) {
     handleMoveHistory('add', {
         cardId,
@@ -387,6 +443,12 @@ export function undoBoardMove() {
         updateCardPosition(card, fromContainer); // appends + stackDiscard -> final slot
         stackCards();
         setSectionHeights();
+        // Playing the discard's last card empties it and turns the deck slot into
+        // #empty; putting that card back has to turn it into #refresh again, or the
+        // player is left unable to buy the deck back and looking at a slot offering
+        // to finish a game that still has a card in the discard.
+        const emptyDiv = getContainerById('empty');
+        if (emptyDiv) setDeckRefresh(emptyDiv);
         const lastRect = card.getBoundingClientRect();
         animateMoveFrom(card, firstRect.left - lastRect.left, firstRect.top - lastRect.top);
         return;
@@ -398,6 +460,7 @@ export function undoBoardMove() {
         updateCardPosition(card, fromContainer);
         stackCards();
         setSectionHeights();
+        updateEmptyDeckState();
     });
 }
 

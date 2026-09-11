@@ -1,4 +1,4 @@
-import { moveCardToCandidate, drawCard, refreshDeck, handleCardClick, handleCardDoubleClick, handleUndoRequest } from './gameActions.js';
+import { moveCardToCandidate, drawCard, refreshDeck, handleCardClick, handleCardDoubleClick, handleUndoRequest, autoCompleteToFoundations } from './gameActions.js';
 
 import { startNewGame, isDealing, selectedCard, setStatsDisplayFlag, setOlenMode, canUndo } from './game.js';
 
@@ -33,6 +33,7 @@ export function setupEventListeners() {
         const candidate = e.target.closest('.candidate');
         const deck = e.target.closest('#deck');
         const refresh = e.target.closest('#refresh');
+        const emptyDeck = e.target.closest('#empty');
         const undoBtn = e.target.closest('#undo');
         const resetStats = e.target.closest('#resetstats');
         const confirmOk = e.target.closest('#confirm-ok');
@@ -67,6 +68,11 @@ export function setupEventListeners() {
         }
         if (refresh) {
             refreshDeck();
+            return;
+        }
+        if (emptyDeck) {
+            // Deck and discard are both gone; the slot offers to finish the game.
+            autoCompleteToFoundations();
             return;
         }
         if (hamburgermenu){

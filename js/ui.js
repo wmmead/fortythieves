@@ -1,4 +1,4 @@
-import { shuffledDeck, setSelectedCard, isValidTableauMove, isValidFoundationMove, getRefreshCost, olenMode, canUndo } from './game.js';
+import { shuffledDeck, setSelectedCard, isValidTableauMove, isValidFoundationMove, getRefreshCost, olenMode, canUndo, canAutoComplete } from './game.js';
 import { shakeElement } from './animation.js';
 import { getGameStatistics } from './stats.js';
 import { renderStatsGraph } from './statsGraph.js';
@@ -21,6 +21,7 @@ SECTION: DOM UTILITIES
 - restoreDeck(elementId): Reset a given element to be the deck.
 - handleEmptyDeckAndDiscard(deckArray, discard): Update deck display if both deck and discard are empty.
 - setRefreshToEmpty(): Set the refresh deck area to an empty state.
+- updateEmptyDeckState(): Mark the empty deck slot .auto-complete or .continue-player.
 - setDeckRefresh(deckDiv): Set the deck as refreshable and update its cost.
 
 SECTION: LAYOUT MANAGER
@@ -115,6 +116,7 @@ export function clearBoard(){
 export function restoreDeck(elementId) {
     if (elementId) {
         elementId.id = 'deck';
+        elementId.classList.remove('auto-complete', 'continue-player');
         elementId.textContent = '';
     }
 }
@@ -125,6 +127,7 @@ export function handleEmptyDeckAndDiscard(deckArray, discard) {
         if (deckDiv) {
             deckDiv.id = 'empty';
             deckDiv.textContent = '';
+            updateEmptyDeckState();
         }
     }
 }
@@ -134,11 +137,33 @@ export function setRefreshToEmpty(){
         if (refreshDiv) {
             refreshDiv.id = 'empty';
             refreshDiv.textContent = '';
+            updateEmptyDeckState();
         }
+}
+
+/**
+ * The empty deck slot is a button, not just a placeholder: tapping it plays the
+ * rest of the game out automatically, but only when that can actually finish the
+ * board. Which of the two it is right now is carried as a class so the stylesheet
+ * can show a different graphic for each state:
+ *
+ *   .auto-complete    — every remaining card can reach a foundation; tap to finish
+ *   .continue-player  — some cards are still out of order; keep arranging by hand
+ *
+ * Cheap enough (a snapshot and a greedy simulation over at most 40 cards) to just
+ * re-run after every move rather than trying to work out when it could have changed.
+ */
+export function updateEmptyDeckState() {
+    const emptyDiv = document.getElementById('empty');
+    if (!emptyDiv) return;
+    const ready = canAutoComplete();
+    emptyDiv.classList.toggle('auto-complete', ready);
+    emptyDiv.classList.toggle('continue-player', !ready);
 }
 
 export function setDeckRefresh(deckDiv){
     deckDiv.id = 'refresh';
+    deckDiv.classList.remove('auto-complete', 'continue-player');
     const cost = getRefreshCost();
     deckDiv.innerHTML = `<span>reset<br>(${cost} pts)</span>`;
 }
@@ -485,9 +510,9 @@ export function showWinScreen( winType ) {
     const tableau = document.querySelector('#tableau-container');
     tableau.className = 'win-container';
     if( winType === 'clear'){
-        message = `<img src="images/club-diamond-characters.png" alt="club and diamond" class="thieves"><div><h2>You built the foundations,<br>but the thieves stole some<br>of your points</h2><a href="#" class="newgame action-bttn">new game</a></div><img src="images/spade-heart-characters.png" alt="spade and heart" class="thieves">`;
+        message = `<img src="images/club-diamond-characters.png" alt="club and diamond" class="thieves"><div><h2>You built the foundations,<br>but the thieves stole some<br>of your points</h2><a href="#" class="newgame action-bttn center-text">new game</a></div><img src="images/spade-heart-characters.png" alt="spade and heart" class="thieves">`;
     } else {
-        message = `<img src="images/club-diamond-characters.png" alt="club and diamond" class="thieves"><div><h2>Congratulations!<br>You won and scored all<br>the possible points!</h2><a href="#" class="newgame action-bttn">new game</a></div><img src="images/spade-heart-characters.png" alt="spade and heart" class="thieves">`;
+        message = `<img src="images/club-diamond-characters.png" alt="club and diamond" class="thieves"><div><h2>Congratulations!<br>You won and scored all<br>the possible points!</h2><a href="#" class="newgame action-bttn center-text">new game</a></div><img src="images/spade-heart-characters.png" alt="spade and heart" class="thieves">`;
     }
     tableau.innerHTML = `<div id="win" class="pop">
                 ${message}
@@ -584,6 +609,10 @@ export function handleDOMAfterMove(card, candidate, fromContainer, targetContain
     if (candidate.classList.contains('temp')) {
         candidate.remove();
     }
+
+    // Every move can change whether the board is finishable, so refresh the
+    // empty deck slot's state. No-ops until the deck and discard are both gone.
+    updateEmptyDeckState();
 }
 
 export function toggleMenu() {

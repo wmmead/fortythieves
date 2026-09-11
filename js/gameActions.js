@@ -1,7 +1,7 @@
 // Import UI utilities for positioning, stacking, layout, and deck counter updates
-import { handleDOMAfterMove, clearSelection, deselectCards, createCardElement, placeCardInDiscard, highlightTableauTargets, highlightFoundationTargets, createTempCandidate, updateDeckCounter, updateScoreDisplay, restoreDeck, handleEmptyDeckAndDiscard, getContainerById, getClassElements, showError, stackDiscard } from './ui.js';
+import { handleDOMAfterMove, clearSelection, deselectCards, createCardElement, placeCardInDiscard, highlightTableauTargets, highlightFoundationTargets, createTempCandidate, updateDeckCounter, updateScoreDisplay, restoreDeck, handleEmptyDeckAndDiscard, getContainerById, getClassElements, showError, stackDiscard, blockUserInteraction, unblockUserInteraction } from './ui.js';
 // Import the current shuffled deck from game state
-import { getShuffledDeck, setSelectedCard, setDeckDepleted, getNextCardFromDeck, handleMoveHistory, recordMove, recordDrawMove, handleDeckDepletion, refillDeckFromDiscard, handleScoringAndWin, undoBoardMove, undoDiscardMove, score, getCurrentScore, setScore,  getRefreshCost, setStatsDisplayFlag, olenMode } from './game.js';
+import { getShuffledDeck, setSelectedCard, setDeckDepleted, getNextCardFromDeck, handleMoveHistory, recordMove, recordDrawMove, handleDeckDepletion, refillDeckFromDiscard, handleScoringAndWin, undoBoardMove, undoDiscardMove, score, getCurrentScore, setScore,  getRefreshCost, setStatsDisplayFlag, olenMode, canAutoComplete } from './game.js';
 // Import animations
 import { animateCardMove, animateDiscardCard } from './animation.js';
 import { playSingleTapSound, playDoubleTapSound, playCardDownSound } from './audio.js';
@@ -29,6 +29,13 @@ CARD MOVEMENT & ANIMATION
 AUTOMATIC MOVE HANDLING (DOUBLE-CLICK)
 --------------------------------------
 - handleCardDoubleClick(card): Handles double-clicking a card, auto-moving it to the best valid target (foundation, tableau, or empty section).
+
+AUTO-COMPLETE (TAP THE EMPTY DECK)
+----------------------------------
+- autoCompleteToFoundations(): Play the rest of a finishable board out, one animated card at a time.
+- isAutoCompleting(): True while that sequence is running.
+- playNextAutoMove(): Internal; plays one move and schedules the next from its completion.
+- findNextFoundationMove(): Internal; the next tableau card that a foundation will take, with its target.
 
 UNDO & REDO OPERATIONS
 ----------------------
@@ -126,7 +133,13 @@ function checkCardPosition(card){
 /* ============================================================================
    CARD MOVEMENT & ANIMATION
 ============================================================================ */
-export function moveCardToCandidate(candidate, card) {
+/**
+ * @param {HTMLElement} candidate - the card (or temp placeholder) being landed on.
+ * @param {HTMLElement} card - the card to move.
+ * @param {Function} [onComplete] - run once the move has fully landed and been
+ *   scored. Only the auto-complete sequence uses it, to chain the next move.
+ */
+export function moveCardToCandidate(candidate, card, onComplete) {
     // The move (DOM reparenting, scoring, history) is applied in the animation's
     // onComplete, so the selection and candidate highlights stay live while the
     // card is in flight. A second click during that window would replay the whole
@@ -154,6 +167,9 @@ export function moveCardToCandidate(candidate, card) {
         handleScoringAndWin(card, fromContainer, targetContainer);
         recordMove(card, fromContainer, targetContainer);
         playCardDownSound();
+        // Last, so anything chaining off this move sees a fully settled board —
+        // including the win screen, if that move was the one that finished it.
+        if (onComplete) onComplete();
     });
     return true;
 }
@@ -216,6 +232,80 @@ export function handleCardDoubleClick(card) {
             return;
         }
     }
+}
+
+/* ============================================================================
+   AUTO-COMPLETE (TAP THE EMPTY DECK)
+============================================================================ */
+// Once the deck and the discard are both gone the deck slot becomes #empty, and
+// on a board where every remaining card can reach a foundation there is nothing
+// left to decide — only the clicking. Tapping the slot in that state plays the
+// rest of the game out, one card at a time, through exactly the same path a
+// hand-played move takes: same animation, same landing sound, same scoring, same
+// move history. The player sees the game they would have played, without playing it.
+let autoCompleting = false;
+
+export function isAutoCompleting() {
+    return autoCompleting;
+}
+
+export function autoCompleteToFoundations() {
+    if (autoCompleting) return;
+    // Only ever offered as a finish. A board that would strand partway through is
+    // left to the player, because dumping every card a foundation happens to take
+    // costs them the tableau targets they need to unbury the rest — and points with them.
+    if (!canAutoComplete()) {
+        showError('Some cards are still out of order — keep arranging the tableau.');
+        return;
+    }
+    autoCompleting = true;
+    clearSelection();
+    // The deal already blocks the board while it runs; do the same here, so a tap
+    // landing between two cards can't select or move anything mid-sequence.
+    blockUserInteraction();
+    playNextAutoMove();
+}
+
+function playNextAutoMove() {
+    const next = findNextFoundationMove();
+    // Nothing left to play: either the board is clear (the win screen has already
+    // replaced the tableau by now, from the last move's scoring) or a move was
+    // refused below. Either way the sequence is over and the board goes back to the player.
+    if (!next) {
+        autoCompleting = false;
+        unblockUserInteraction();
+        return;
+    }
+    if (!moveCardToCandidate(next.target, next.card, playNextAutoMove)) {
+        // Shouldn't happen — a move onto a foundation is never refused — but stop
+        // rather than re-pick the same card forever if it ever does.
+        if (next.target.classList.contains('temp')) next.target.remove();
+        autoCompleting = false;
+        unblockUserInteraction();
+        return;
+    }
+    setStatsDisplayFlag(true);
+}
+
+// The next playable tableau card and the thing it lands on: the foundation's top
+// card, or a temp placeholder when the foundation is empty and the card is an ace
+// (the same placeholder a double-click uses, so the move animates to a real slot).
+function findNextFoundationMove() {
+    const sections = document.querySelectorAll('section');
+    for (const section of sections) {
+        const cards = section.querySelectorAll('.card:not(.temp)');
+        if (cards.length === 0) continue;
+        const card = cards[cards.length - 1];
+        for (const foundation of foundations) {
+            const foundationCards = foundation.querySelectorAll('.card:not(.temp)');
+            if (foundationCards.length === 0) {
+                if (isAce(card)) return { card, target: createTempCandidate(foundation) };
+            } else if (isFoundationAccepting(card, foundation)) {
+                return { card, target: foundationCards[foundationCards.length - 1] };
+            }
+        }
+    }
+    return null;
 }
 
 /* ============================================================================
