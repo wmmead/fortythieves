@@ -283,13 +283,16 @@ export function handleDeckDepletion(discard) {
 
 export function refillDeckFromDiscard(discard, deckArray) {
     const cards = discard.querySelectorAll('.card');
-    deckArray.length = 0; // Clear the current deck
+    // The deck should already be empty when this runs, but keep anything still in
+    // it (after the discard cards) rather than silently deleting it from the game.
+    const remaining = deckArray.splice(0);
     cards.forEach(card => {
         const suit = card.getAttribute('data-suit');
         const value = card.getAttribute('data-value');
         deckArray.push(suit + value);
         card.remove();
     });
+    deckArray.push(...remaining);
 }
 
 /* ============================================================================
@@ -490,7 +493,11 @@ export function undoDiscardMove() {
     // Re-flow the staggered discard fan now that a card has been pulled back to the deck
     stackDiscard();
 
-    // --- Edge case fix: If the deck was empty, restore deck element and state ---
+    // Un-drawing the deck's last card: drawing it turned the slot into #refresh,
+    // so it has to become #deck again. Left as #refresh, the card is back in
+    // shuffledDeck but can't be drawn, and tapping reset wipes it out of the deck.
+    const refreshDiv = getContainerById('refresh');
+    if (refreshDiv) restoreDeck(refreshDiv);
     setDeckDepleted(false);
     updateDeckCounter();
 }

@@ -23,6 +23,7 @@ SECTION: DOM UTILITIES
 - setRefreshToEmpty(): Set the refresh deck area to an empty state.
 - updateEmptyDeckState(): Mark the empty deck slot .auto-complete or .continue-player.
 - setDeckRefresh(deckDiv): Set the deck as refreshable and update its cost.
+- updateRefreshCost(): Rewrite the reset button's cost label from the current score.
 
 SECTION: LAYOUT MANAGER
 -----------------------
@@ -164,8 +165,16 @@ export function updateEmptyDeckState() {
 export function setDeckRefresh(deckDiv){
     deckDiv.id = 'refresh';
     deckDiv.classList.remove('auto-complete', 'continue-player');
-    const cost = getRefreshCost();
-    deckDiv.innerHTML = `<span>reset<br>(${cost} pts)</span>`;
+    updateRefreshCost();
+}
+
+// The refresh cost depends on the score, so the reset button's label has to be
+// rewritten whenever the score changes (cards moved to or from the foundations,
+// or an undo of either). Does nothing unless the reset button is showing.
+export function updateRefreshCost() {
+    const refreshDiv = document.getElementById('refresh');
+    if (!refreshDiv) return;
+    refreshDiv.innerHTML = `<span>reset<br>(${getRefreshCost()} pts)</span>`;
 }
 
 export function updateCardImageDirectory(oldDir, newDir) {
@@ -467,6 +476,7 @@ export function updateUndoButtonText() {
 }
 export function updateScoreDisplay(score) {
     document.getElementById('score').textContent = score;
+    updateRefreshCost();
 }
 
 // Most recent stats rendered to the graph; used by the win screen on small viewports

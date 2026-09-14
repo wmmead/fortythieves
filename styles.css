@@ -160,10 +160,36 @@ h1 span:last-of-type {
     background-size: contain;
 }
 
+/* The arrow is drawn on a pseudo-element so it can bob without moving the slot
+   itself: the tap target stays put, and the animation starts and stops on its own
+   as JS adds and removes .auto-complete. translateY percentages are relative to
+   the pseudo-element's own height, so the travel scales with the card size.
+   --arrow-bob is the travel: 14% of the box is about 20% of the drawn arrow,
+   which fills roughly 70% of the image's height. */
 #empty.auto-complete {
-    background-image: url(images/up-arrow.png);
-    background-size: contain;
+    position: relative;
     cursor: pointer;
+    --arrow-bob: -14%;
+}
+
+#empty.auto-complete::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: url(images/up-arrow.png) center / contain no-repeat;
+    animation: arrow-bob 1.8s ease-in-out infinite;
+    pointer-events: none;
+}
+
+@keyframes arrow-bob {
+    0%, 100% { transform: translateY(0); }
+    50%      { transform: translateY(var(--arrow-bob)); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    #empty.auto-complete::after {
+        animation: none;
+    }
 }
 
 #container {
