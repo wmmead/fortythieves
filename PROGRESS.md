@@ -879,11 +879,46 @@ Headless Chrome over the DevTools Protocol against a temporary harness page (a c
 
 A full 104-card clear takes about 32 seconds at the manual 0.3s-per-move animation speed. That's the worst case — a real finish has most cards already up — but if it drags, the move rate is the dial.
 
+**Graphics since added (Bill, same commit `3ab6a0f`):** `#empty.continue-player` uses `images/empty-thief.png` and `#empty.auto-complete` uses `images/up-arrow.png`; the `thief-heart.png` placeholder is no longer used for the slot.
+
+## Session: September 14, 2026 — two deck bugs, and a bobbing auto-complete arrow
+
+Committed by Bill as `307f1df`.
+
+### Bug 1 — undoing the deck's last draw could delete the card from the game
+
+Bill lost the 6♠ mid-game and couldn't finish; he suspected an undo at the very end of the deck. Correct.
+
+**Chain:** drawing the last card runs `handleDeckDepletion()`, which renames the slot `#deck` → `#refresh`. `undoDiscardMove()` put the card back into `shuffledDeck` and cleared `deckDepleted`, but **never renamed the slot back**, so the card sat in the deck array with only a "reset (N pts)" button showing — undrawable, since only `#deck` draws. Tapping reset then ran `refillDeckFromDiscard()`, whose first line was `deckArray.length = 0`: the stranded card was wiped out of the game, and the player was charged the refresh cost for it.
+
+- `js/game.js` — `undoDiscardMove()` calls `restoreDeck()` on `#refresh` if present, so the slot is `#deck` again (the counter reappears via the existing `updateDeckCounter()`). The slot can't be `#empty` at that point: a draw always leaves the discard non-empty.
+- `js/game.js` — `refillDeckFromDiscard()` no longer discards what's in the deck: it `splice(0)`s the remainder and appends it after the discard cards. Shouldn't happen after the fix above; it's a guard so a card can never silently leave the game.
+
+**Verified** in headless Chrome over the DevTools Protocol, with a card-conservation count (`.card` elements + `shuffledDeck.length`) at every step. **Unfixed code (stashed):** draw all 64, undo → slot still `#refresh`, deck array 1, no `#deck` element to click — the reported bug. **Fixed:** undo → `#deck` showing `1`; redraw works; reset rebuilds all 64 and charges the correct cost; total stays 104 throughout. Zero console errors.
+
+### Bug 2 — the reset button's cost label went stale
+
+The refresh cost is `⌈(728 − score) × 0.25⌉`, but the "reset (N pts)" text was only written once, when the deck ran out. Moving cards to or from the foundations afterwards changed the score (and the cost actually charged, which was always right) without updating the label.
+
+- `js/ui.js` — new `updateRefreshCost()` rewrites `#refresh`'s label from `getRefreshCost()`, no-op when the reset button isn't showing. Called from `updateScoreDisplay()`, the single path every score change already takes (`addScore`, `subtractScore` — so foundation moves in both directions and their undos — plus new game and refresh). `setDeckRefresh()` now uses it too, so the label is built in one place.
+
+**Verified** in headless Chrome: after exhausting the deck at score 200 the label read 132; `addScore(13)` → 129; `subtractScore(40)` → 139 — each matching `getRefreshCost()`. Score changes were driven through the scoring functions directly rather than real card moves (which call the same functions). Zero console errors.
+
+### Auto-complete arrow bobs to invite a tap
+
+Bill asked for the up-arrow (`#empty.auto-complete`) to move gently up and down.
+
+- `styles.css` — the arrow moved from `#empty.auto-complete`'s own background to an `::after` pseudo-element (`inset: 0`, `pointer-events: none`) animated by a new `@keyframes arrow-bob` (`translateY` 0 → `var(--arrow-bob)` → 0, 1.8s, ease-in-out, infinite). `--arrow-bob: -14%` — `translateY` percentages are of the pseudo-element's own height, and the drawn arrow fills ~70% of the 500×726 image, so 14% of the box is ~20% of the visible arrow. Disabled under `prefers-reduced-motion: reduce`.
+- **Why CSS rather than GSAP or an `<img>`:** the slot enters and leaves this state by JS toggling the class (and renaming the id) after every move, undo and new game; a class-bound CSS animation starts and stops with it for free, where a GSAP tween would need start/kill calls at each of those points. Animating a pseudo-element also keeps the tap target stationary while the arrow moves.
+
+**Verified** in headless Chrome, sampling the `::after` computed transform across a cycle: 1400px — peak lift 19.5px on a 140px slot; 460px — 12.2px on 88px (13.9% both), returning to 0. Screenshots confirmed the arrow rises within the slot without colliding with neighbours. `elementFromPoint` at the slot's centre returned `#empty` in 19 of 20 samples; the one exception (at 460px) returned `#instructions` although the popup was closed — not caused by the arrow (it's `pointer-events: none`), likely a harness artefact, but worth watching for an unresponsive tap on a phone. Zero console errors.
+
 ## Remaining known issues / possible next steps
 
 - **A ~10-20 ms audio remnant on reload and on the resume button** (iPad only, accepted) — the OS output buffer drains after the master gain is cut; see the September 5 master-gain session. Irreducible from JavaScript, and below the threshold Bill considers noticeable.
 
 - **Mobile divider vs. long fan** (minor, cosmetic) — the ≤490px divider is a stable grid border spanning the foundation+tableau rows; a discard fan long enough to overflow that area extends slightly past the bottom of the border. Chosen tradeoff (grid-only, no JS) over the fan-tracking absolute-positioned version. Revisit if it bothers.
 - **Foundation-move affordability can strand a game** (see August 26 session) — narrow edge case, matches the deck-refresh cost design (the undo cost it also mirrored was removed August 27); revisit only if it proves annoying in practice.
-- **Auto-complete needs its two graphics** (September 10) — `#empty.auto-complete` and `#empty.continue-player` both still point at the `thief-heart.png` placeholder. Bill is drawing the real pair.
-- No other tracked items. (Done June 23: mobile discard layout, discard zone styling, undo-of-a-discard-play jump. Done August 29: first-load autoplay block on `full-deal.mp3`, fixed by gating the initial deal behind the new intro overlay's "Play Game" click.)
+- **Temporary now-playing display** (September 5) — `#audio-tracks-playing` and its wiring in `js/music.js` are still in place; Bill planned to remove them once he's settled which tracks to keep.
+- **Shortcut hint styling** (September 6) — deliberately plain; `.action-bttn .shortcut` and `.platform-mac .action-bttn .shortcut` are the hooks if Bill adjusts the fonts.
+- No other tracked items. (Done June 23: mobile discard layout, discard zone styling, undo-of-a-discard-play jump. Done August 29: first-load autoplay block on `full-deal.mp3`, fixed by gating the initial deal behind the new intro overlay's "Play Game" click. Done September 14: the auto-complete graphics — Bill's `empty-thief.png` / `up-arrow.png` are in.)
