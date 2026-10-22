@@ -913,12 +913,21 @@ Bill asked for the up-arrow (`#empty.auto-complete`) to move gently up and down.
 
 **Verified** in headless Chrome, sampling the `::after` computed transform across a cycle: 1400px — peak lift 19.5px on a 140px slot; 460px — 12.2px on 88px (13.9% both), returning to 0. Screenshots confirmed the arrow rises within the slot without colliding with neighbours. `elementFromPoint` at the slot's centre returned `#empty` in 19 of 20 samples; the one exception (at 460px) returned `#instructions` although the popup was closed — not caused by the arrow (it's `pointer-events: none`), likely a harness artefact, but worth watching for an unresponsive tap on a phone. Zero console errors.
 
+## Session: October 21, 2026 — now-playing list moved to the console
+
+Bill removed the box around the play area in `styles.css` (`64b9e2f`, his own change).
+
+The temporary on-screen track list from September 5 is gone: `#audio-tracks-playing` is removed from `index.html` and `styles.css`, and the `activeTrackNames` bookkeeping is removed from `js/music.js`. In its place, `playTrack()` logs `Music: starting track <file>` and `forgetTrack()` logs `Music: removing track <file>`. `forgetTrack()` is the one teardown path for a normal end, a fade-out prune, a failure and an AudioContext rebuild, so every removal is logged no matter how it happens.
+
+### Verified
+
+`node --check` on `js/music.js`. Headless Chrome over the DevTools Protocol: a real pointer click on "Play Game" logged two `starting track` lines. A forced `rebuildAudioContext()` (the path an iPad app switch takes) then logged `removing track` for both tracks, followed by two new `starting track` lines. The element was no longer in the DOM, and there were no console errors.
+
 ## Remaining known issues / possible next steps
 
 - **A ~10-20 ms audio remnant on reload and on the resume button** (iPad only, accepted) — the OS output buffer drains after the master gain is cut; see the September 5 master-gain session. Irreducible from JavaScript, and below the threshold Bill considers noticeable.
 
 - **Mobile divider vs. long fan** (minor, cosmetic) — the ≤490px divider is a stable grid border spanning the foundation+tableau rows; a discard fan long enough to overflow that area extends slightly past the bottom of the border. Chosen tradeoff (grid-only, no JS) over the fan-tracking absolute-positioned version. Revisit if it bothers.
 - **Foundation-move affordability can strand a game** (see August 26 session) — narrow edge case, matches the deck-refresh cost design (the undo cost it also mirrored was removed August 27); revisit only if it proves annoying in practice.
-- **Temporary now-playing display** (September 5) — `#audio-tracks-playing` and its wiring in `js/music.js` are still in place; Bill planned to remove them once he's settled which tracks to keep.
 - **Shortcut hint styling** (September 6) — deliberately plain; `.action-bttn .shortcut` and `.platform-mac .action-bttn .shortcut` are the hooks if Bill adjusts the fonts.
-- No other tracked items. (Done June 23: mobile discard layout, discard zone styling, undo-of-a-discard-play jump. Done August 29: first-load autoplay block on `full-deal.mp3`, fixed by gating the initial deal behind the new intro overlay's "Play Game" click. Done September 14: the auto-complete graphics — Bill's `empty-thief.png` / `up-arrow.png` are in.)
+- No other tracked items. (Done June 23: mobile discard layout, discard zone styling, undo-of-a-discard-play jump. Done August 29: first-load autoplay block on `full-deal.mp3`, fixed by gating the initial deal behind the new intro overlay's "Play Game" click. Done September 14: the auto-complete graphics — Bill's `empty-thief.png` / `up-arrow.png` are in. Done October 21: the now-playing display, replaced by console logs.)

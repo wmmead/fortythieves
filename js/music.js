@@ -64,31 +64,12 @@ let pendingStarts = 0;            // cascade triggers deferred because the cap w
 let musicStarted = false;
 let musicVolume = loadVolume();
 
-/* ---------- Temporary: visible list of tracks in the rotation ---------- */
-/* Bill added #audio-tracks-playing to watch which files the random cascade
-   picks, to help decide which to keep. Remove this block (and the element in
-   index.html) once that testing is done. */
-
-const activeTrackNames = [];
+/* ---------- Console log of tracks in the rotation ---------- */
+/* Lets Bill watch which files the random cascade picks, to help decide which
+   to keep, without anything on screen. */
 
 function trackBasename(src) {
     return src.split('/').pop();
-}
-
-function renderActiveTrackNames() {
-    const el = document.getElementById('audio-tracks-playing');
-    if (el) el.textContent = activeTrackNames.join(', ');
-}
-
-function addActiveTrackName(src) {
-    activeTrackNames.push(trackBasename(src));
-    renderActiveTrackNames();
-}
-
-function removeActiveTrackName(src) {
-    const index = activeTrackNames.indexOf(trackBasename(src));
-    if (index !== -1) activeTrackNames.splice(index, 1);
-    renderActiveTrackNames();
 }
 
 function loadVolume() {
@@ -213,7 +194,7 @@ function forgetTrack(track, quiet) {
 
     playingTracks.delete(track.src);
     activeTracks.delete(track);
-    removeActiveTrackName(track.src);
+    console.log(`Music: removing track ${trackBasename(track.src)}`);
 
     if (track.fadeTimerId) {
         clearTimeout(track.fadeTimerId);
@@ -270,7 +251,7 @@ function playTrack(src, fadeInDuration) {
     playingTracks.add(src);
     const track = createTrack(src);
     activeTracks.add(track);
-    addActiveTrackName(src);
+    console.log(`Music: starting track ${trackBasename(src)}`);
     track.fadeInDuration = fadeInDuration || FADE_IN_DURATION;
     startStreaming(track).catch((err) => handleFailure(track, err && err.message ? err.message : String(err)));
 }
@@ -554,8 +535,6 @@ onAudioContextRebuild({
         Array.from(activeTracks).forEach((track) => forgetTrack(track, true));
         activeTracks.clear();
         playingTracks.clear();
-        activeTrackNames.length = 0;
-        renderActiveTrackNames();
         pendingStarts = 0;
     },
     restart: () => {
