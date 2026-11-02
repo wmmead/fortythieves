@@ -655,7 +655,7 @@ const INSTRUCTIONS_SEEN_KEY = 'instructionsSeen';
 export function openInstructions() {
     const el = document.getElementById('instructions');
     if (!el) return;
-    el.style.display = 'block';
+    el.style.display = 'flex'; // header + scrolling body column; see #instructions in styles.css
     void el.offsetWidth; // force a reflow so the opacity transition runs from 0
     el.classList.add('show');
 }

@@ -275,10 +275,7 @@ h1 span:last-of-type {
     z-index: 600;
     max-width: 600px;
     max-height: calc(100svh - 40px);
-    /* 50px on top (not 30px like the bottom) so the scrolling area, and its
-       scrollbar, starts below the close X instead of running underneath it.
-       Classic scrollbars (Windows) sit right in the X's column. */
-    padding: 50px 20px 30px 30px;
+    padding: 30px 20px 30px 30px;
     background: url(images/background7.jpg);
     top: 20px;
     left: 50%;
@@ -286,8 +283,10 @@ h1 span:last-of-type {
     border-radius: 20px;
     line-height: 1.4em;
     border: 5px solid #cac4b7;
-    /* Hidden by default; JS toggles display + the .show class (see openInstructions). */
+    /* A column of fixed header + scrolling body. Hidden by default; JS sets
+       display:flex and toggles the .show class (see openInstructions). */
     display: none;
+    flex-direction: column;
     opacity: 0;
     transition: opacity 0.4s ease;
 }
@@ -305,26 +304,48 @@ h1 span:last-of-type {
     100% { transform: translateX(-50%) scale(1); }
 }
 
-#instructions > div {
-    width: 100%;
-    padding-right: 5%;
-    /* #instructions' max-height less its 80px vertical padding and 10px of
-       border, so the scroll area fills the popup without overflowing it. */
-    height: calc(100svh - 130px);
-    overflow-y: auto;
+/* The heading and close X stay put above the scrolling body, so the body's
+   scrollbar (wide and square on Windows) starts below the X rather than
+   running underneath it. */
+#instructions > header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 0.75em;
 }
 
+/* Spacing set explicitly here because the bare h1 rules in the small-screen
+   media queries are meant for the game's logo heading and would otherwise
+   apply too (a 4vw line-height that overlaps a wrapped title, a 20% bottom
+   margin, a left offset). */
 #instructions h1 {
     font-size: 3em;
-    margin-bottom: 1em;
+    line-height: .9em;
+    padding-top: 0;
+    margin: 0;
+    left: 0;
     position: static;
 }
 
 #closeinstructions {
-    position: absolute;
-    top: 12px;
-    right: 10px;
+    flex-shrink: 0;
     width: 30px;
+    cursor: pointer;
+}
+
+/* Takes whatever height the popup has left under the header (min-height:0
+   lets it shrink below its content so it scrolls instead of overflowing), so
+   a short page doesn't leave empty space and a tall one fits the window. */
+#instructions > div {
+    flex: 1 1 auto;
+    min-height: 0;
+    padding-right: 5%;
+    overflow-y: auto;
+}
+
+#instructions > div > :first-child {
+    margin-top: 0;
 }
 
 /* Menu Styles */
@@ -1080,9 +1101,6 @@ section {
         width: 80%;
         top: 60px;
         max-height: calc(100svh - 80px);
-    }
-    #instructions > div {
-        height: calc(100svh - 170px); /* same sum as above, for this max-height */
     }
 }
 
