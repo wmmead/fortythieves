@@ -51,9 +51,9 @@ SECTION: GAME DISPLAY
 - updateDeckCounter(): Show or update the deck's remaining card counter.
 - updateUndoButtonText(): Update the undo button label and enabled/disabled state.
 - updateScoreDisplay(score): Update the displayed score.
-- updateGameStatsInfo(): Sets the DOM so show the current stats
-- updateEndGameStats(): Sets the stats window at the end of the game to show stats + current game.
-- resetGameStatsInfo(): resets the stats in the DOM screen
+- updateGameStatsInfo(): Redraws the header stats graphic from saved stats.
+- updateEndGameStats(): Redraws the header stats graphic at the end of a game, including that game.
+- resetGameStatsInfo(): Redraws the header stats graphic at zero after a stats reset.
 
 SECTION: SCREEN MANAGER
 -----------------------
@@ -488,27 +488,18 @@ function refreshStatsGraph(gamesPlayed, averageScore, gamesWon) {
     renderStatsGraph(document.getElementById('statsgraph'), latestStats, 'hdr-');
 }
 
+// The stats graphic in the header is the only place stats are shown now; the
+// text copy that used to sit in the menu was removed as a duplicate.
 export function updateGameStatsInfo(){
     const currentGameStats = getGameStatistics();
-    if( currentGameStats.gamesPlayed ){
-        document.querySelector('#played').textContent = currentGameStats.gamesPlayed;
-        document.querySelector('#average').textContent = currentGameStats.averageScore;
-        document.querySelector('#wins').textContent = currentGameStats.gamesWon;
-    }
     refreshStatsGraph(currentGameStats.gamesPlayed, currentGameStats.averageScore, currentGameStats.gamesWon);
 }
 
 export function updateEndGameStats(numOfGames, numWins, average){
-    document.querySelector('#played').textContent = numOfGames;
-    document.querySelector('#average').textContent = average;
-    document.querySelector('#wins').textContent = numWins;
     refreshStatsGraph(numOfGames, average, numWins);
 }
 
 export function resetGameStatsInfo(){
-    document.querySelector('#played').textContent = '0';
-    document.querySelector('#average').textContent = '0';
-    document.querySelector('#wins').textContent = '0';
     refreshStatsGraph(0, 0, 0);
 }
 
@@ -551,23 +542,26 @@ export function resetMain(){
             <section id="s10"></section>`;
 }
 
-// Call this before dealing
+// Call this before dealing. Styled in styles.css (#interaction-blocker): it
+// covers the board but sits below the menu, the instructions popup and the
+// confirm dialog, so those stay usable mid-deal.
 export function blockUserInteraction() {
     let blocker = document.getElementById('interaction-blocker');
     if (!blocker) {
         blocker = document.createElement('div');
         blocker.id = 'interaction-blocker';
-        blocker.style.position = 'fixed';
-        blocker.style.top = '0';
-        blocker.style.left = '0';
-        blocker.style.width = '100vw';
-        blocker.style.height = '200vh';
-        blocker.style.zIndex = '9999';
-        blocker.style.background = 'rgba(0,0,0,0)'; // invisible
-        blocker.style.pointerEvents = 'all';
         document.body.appendChild(blocker);
     }
-    blocker.style.display = 'block';
+}
+
+// Greys out the menu's "new game" button while a deal is running. Clicking it
+// is already ignored then (see isDealing() in events.js); this makes that
+// visible. Scoped to #menu so the win screen's .newgame buttons are untouched.
+export function setNewGameEnabled(enabled) {
+    document.querySelectorAll('#menu .newgame').forEach(btn => {
+        btn.classList.toggle('disabled', !enabled);
+        btn.setAttribute('aria-disabled', String(!enabled));
+    });
 }
 
 export function unblockUserInteraction() {

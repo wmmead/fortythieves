@@ -258,12 +258,27 @@ h1 span:last-of-type {
   /* Add more styles as needed */
 }
 
+/* Invisible cover over the board while a deal runs (js/ui.js
+   blockUserInteraction). Its z-index sits above anything on the board,
+   including cards in flight (100), but below the instructions popup (600),
+   the menu (1000) and the reset-stats confirm dialog (1600), so the sound
+   controls and the rest of the menu still work mid-deal. */
+#interaction-blocker {
+    position: fixed;
+    inset: 0;
+    z-index: 500;
+    background: transparent;
+}
+
 #instructions {
     position: absolute;
-    z-index: 100;
+    z-index: 600;
     max-width: 600px;
     max-height: calc(100svh - 40px);
-    padding: 30px 20px 30px 30px;
+    /* 50px on top (not 30px like the bottom) so the scrolling area, and its
+       scrollbar, starts below the close X instead of running underneath it.
+       Classic scrollbars (Windows) sit right in the X's column. */
+    padding: 50px 20px 30px 30px;
     background: url(images/background7.jpg);
     top: 20px;
     left: 50%;
@@ -293,7 +308,9 @@ h1 span:last-of-type {
 #instructions > div {
     width: 100%;
     padding-right: 5%;
-    height: calc(100svh - 100px);
+    /* #instructions' max-height less its 80px vertical padding and 10px of
+       border, so the scroll area fills the popup without overflowing it. */
+    height: calc(100svh - 130px);
     overflow-y: auto;
 }
 
@@ -305,7 +322,7 @@ h1 span:last-of-type {
 
 #closeinstructions {
     position: absolute;
-    top: 10px;
+    top: 12px;
     right: 10px;
     width: 30px;
 }
@@ -387,11 +404,19 @@ h1 span:last-of-type {
     top: -5px;
     /* This tab overlaps the ul's bottom-right corner (via the -5px top
        offset above), and its own box-shadow was bleeding onto the ul's
-       surface there. clip-path crops the shadow off flush on the top and
-       left sides (where it overlaps the ul) while leaving it untouched on
-       the right and bottom (where it floats freely) — a plain overflow:hidden
-       on a wrapper would've clipped all four sides instead of just two. */
-    clip-path: inset(0 -20px -20px 0);
+       surface there. The polygon crops the shadow flush along the top edge
+       and along the top 5px of the left edge (the only parts that sit on the
+       ul) and lets it extend 20px everywhere else. A plain inset() can only
+       clip a whole side, so clipping the left that way cut off the tab's
+       left shadow below the ul too, leaving a hard edge on light backgrounds. */
+    clip-path: polygon(
+        0 0,
+        calc(100% + 20px) 0,
+        calc(100% + 20px) calc(100% + 20px),
+        -20px calc(100% + 20px),
+        -20px 5px,
+        0 5px
+    );
 }
 
 /* Keyboard shortcut hints on the menu's undo and new-game buttons, added by
@@ -475,29 +500,6 @@ h1 span:last-of-type {
 
 #menu.open .menu-btn span:nth-child(3) {
     transform: translateY(-8px) rotate(-45deg);
-}
-
-#stats {
-    background-color: rgba(255, 255, 255, 0.5);
-    padding: 10px;
-    border-radius: .5rem;
-}
-
-#stats h3 {
-    margin: 0 0 0.5em 0;
-}
-
-#stats p {
-    margin: 0 0 .5em 0;
-    font-size: 1em;
-}
-
-#stats p:last-of-type {
-    margin-bottom: 0;
-}
-
-#stats p span {
-    font-weight: bold;
 }
 
 .sndfx-switch {
@@ -1079,6 +1081,9 @@ section {
         top: 60px;
         max-height: calc(100svh - 80px);
     }
+    #instructions > div {
+        height: calc(100svh - 170px); /* same sum as above, for this max-height */
+    }
 }
 
 @media screen and (max-width: 660px) {
@@ -1165,11 +1170,6 @@ section {
 
     #score-container h2, #score-container p:first-of-type, #score-container p:last-of-type {
         font-size: 1.5em;
-    }
-
-    #stats-container {
-        flex-direction: column;
-        justify-content: flex-start;
     }
 
     #confirm-dialog {

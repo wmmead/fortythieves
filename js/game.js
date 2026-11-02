@@ -1,5 +1,5 @@
 // Import UI update functions for card stacking, layout, and deck counter
-import { stackCards, setSectionHeights, createCardElement, blockUserInteraction, unblockUserInteraction, setDeckRefresh, setRefreshToEmpty, restoreDeck, clearBoard, updateUndoButtonText, updateDeckCounter, getContainerById, getClassElements, findCardInContainer, moveCardElement, updateCardPosition, stackDiscard, showError, updateScoreDisplay, showWinScreen, resetMain, updateGameStatsInfo, updateEndGameStats, closeMenu, maybeAutoShowInstructions, updateEmptyDeckState } from './ui.js';
+import { stackCards, setSectionHeights, createCardElement, blockUserInteraction, unblockUserInteraction, setDeckRefresh, setRefreshToEmpty, restoreDeck, clearBoard, updateUndoButtonText, updateDeckCounter, getContainerById, getClassElements, findCardInContainer, moveCardElement, updateCardPosition, stackDiscard, showError, updateScoreDisplay, showWinScreen, resetMain, updateGameStatsInfo, updateEndGameStats, closeMenu, maybeAutoShowInstructions, updateEmptyDeckState, setNewGameEnabled } from './ui.js';
 import { getCardMoveDelta, animateCardMove, animateMoveFrom } from './animation.js';
 import { setupEventListeners } from './events.js';
 import { createNewGameRecord, updateCurrentGameStats, deleteZeroMoveRecords, getGameStatistics } from './stats.js';
@@ -138,22 +138,31 @@ export function isDealing() {
 }
 
 export async function initGame() {
-    // Held for the first deal too. Nothing can reach startNewGame() during it
-    // today, since setupEventListeners() runs at the end of this function, but
-    // that's an accident of ordering rather than a guarantee.
+    // Held for the first deal too, so the menu's "new game" button and its
+    // keyboard shortcut can't start a second deal on top of this one.
     dealing = true;
+    setNewGameEnabled(false);
+    // Listeners go on before the deal, not after, so the menu (sound
+    // controls, instructions, reset stats) works during the first deal just
+    // as it does during later ones. The blocker keeps the board itself
+    // untouchable until the cards are down, same as in startNewGame().
+    setupEventListeners();
+    blockUserInteraction();
     try {
         updateUndoButtonText();
+        // Stats go up with the board, before the deal, as in startNewGame(),
+        // rather than appearing only once the last card lands.
+        deleteZeroMoveRecords();
+        updateGameStatsInfo();
         await distributeCards(shuffledDeck);
         updateDeckCounter();
         stackDiscard(); // size the (empty) discard zone now that card dimensions are known
-        deleteZeroMoveRecords();
-        updateGameStatsInfo();
         createNewGameRecord();
-        setupEventListeners();
         maybeAutoShowInstructions(); // first-visit only: opens 2s after the deal completes
     } finally {
         dealing = false;
+        setNewGameEnabled(true);
+        unblockUserInteraction();
     }
 }
 
@@ -165,9 +174,12 @@ export async function startNewGame() {
     // Never deal on top of a deal already in progress (see `dealing` above).
     if (dealing) return;
     dealing = true;
-    // close the menu before the interaction blocker goes up, or it stays stuck open while cards deal
+    // Close the menu as the deal starts. The blocker below only covers the
+    // board, so the menu can be reopened mid-deal for the sound controls,
+    // instructions or reset stats; "new game" is greyed out until it's done.
     closeMenu();
-    // block user interaction while deck is created
+    setNewGameEnabled(false);
+    // block interaction with the board while the deck is dealt
     blockUserInteraction();
     try {
         resetMain();
@@ -211,6 +223,7 @@ export async function startNewGame() {
         // In the finally so a failure mid-deal can't leave the board
         // permanently covered by the blocker with the flag stuck on.
         dealing = false;
+        setNewGameEnabled(true);
         unblockUserInteraction();
     }
 }
