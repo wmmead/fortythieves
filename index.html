@@ -201,9 +201,8 @@
         </div>
     </div>
     <!-- Achievements: drops in from the top while #container slides down out
-         of view (js/achievements.js). Escape slides it back. Visual pass only
-         for now: one sample quote and a sample 12-of-40 state, filled in by
-         renderSampleAchievements() until the real quote data exists. -->
+         of view (js/achievements.js). Escape or the menu item slides it back.
+         The quote and the number row are filled in by initAchievements(). -->
     <!-- A div, not a <section>: the game code and styles.css treat every
          <section> on the page as a tableau pile. role="region" gives it the
          same meaning to screen readers. -->
@@ -222,9 +221,17 @@
             </figure>
             <button type="button" class="quote-arrow next" aria-label="next quote"></button>
         </div>
+        <!-- Number row: one slot per quote, shown a set at a time (15, or 8
+             on narrow screens). The small arrows move to the next/previous
+             set without changing the quote. -->
         <nav id="quote-numbers" aria-label="collected quotes">
-            <ol></ol>
+            <button type="button" class="numbers-shift prev" aria-label="earlier quote numbers"></button>
+            <div class="numbers-window">
+                <ol></ol>
+            </div>
+            <button type="button" class="numbers-shift next" aria-label="later quote numbers"></button>
         </nav>
+        <p id="quote-count"></p>
     </div>
 </body>
 </html>

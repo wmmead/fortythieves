@@ -7,7 +7,7 @@ import { preloadCardImages } from './preload.js';
 import { initResumeOverlay } from './resumeOverlay.js';
 import { initShortcutHints } from './shortcutHints.js';
 import { createBackground } from './background.js';
-import { renderSampleAchievements } from './achievements.js';
+import { initAchievements } from './achievements.js';
 
 // Animated background. Started at module scope rather than inside
 // DOMContentLoaded so the sky is already there behind the intro overlay
@@ -27,7 +27,7 @@ window.addEventListener('DOMContentLoaded', () => {
     initSfxToggle(); // live immediately — the intro switch is usable before "Play Game" is clicked
     initVolumeSlider(); // same for the volume slider
     initShortcutHints(); // labels the menu buttons with their keyboard shortcuts
-    renderSampleAchievements(); // placeholder content for the achievements page (visual pass)
+    initAchievements(); // quote viewer on the achievements page
     const playButton = document.getElementById('play-game');
     if (!playButton) return;
 

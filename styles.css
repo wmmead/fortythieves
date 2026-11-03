@@ -1161,6 +1161,12 @@ html.achievements-open {
     .quote-arrow::before {
         animation: none;
     }
+
+    #quote-numbers ol,
+    #quote-numbers li,
+    #quote-numbers li.in-set {
+        transition: none;
+    }
 }
 
 /* The badge at the top: the intro panel's art and logo, smaller, with a
@@ -1187,10 +1193,10 @@ html.achievements-open {
     position: absolute;
     top: calc(var(--badge-art) * 155 / 280);
     left: 50%;
-    right: 0;
+    /* right: 0; */
     margin: 0;
     font-family: "Jomhuria", serif;
-    font-size: calc(var(--badge-art) * 32 / 280);
+    font-size: calc(var(--badge-art) * 32 / 260);
     line-height: .9em;
     color: #0d1532;
     user-select: none;
@@ -1230,8 +1236,14 @@ html.achievements-open {
 #quote {
     margin: 0;
     text-align: center;
-    font-size: 20px;
+    font-size: 24px;
     line-height: 1.35;
+    transition: opacity 150ms ease; /* = FADE_MS in js/achievements.js */
+}
+
+/* Briefly faded out while the quote is swapped (showQuote()). */
+#quote.changing {
+    opacity: 0;
 }
 
 #quote blockquote {
@@ -1239,7 +1251,7 @@ html.achievements-open {
 }
 
 #quote figcaption {
-    margin-top: 1.1em;
+    margin-top: .5em;
 }
 
 #quote cite {
@@ -1289,9 +1301,23 @@ html.achievements-open {
 
 /* Number row: one slot per quote. Collected quotes are white and clickable,
    the one showing is red, uncollected ones are grey and disabled. Each
-   number's trailing "|" takes the number's colour, as in the mockup. */
+   number's trailing "|" takes the number's colour, as in the mockup.
+   Shown a set at a time (js/achievements.js, layoutSet()): the numbers sit
+   on one line that slides inside .numbers-window, which clips it sideways;
+   numbers outside the set fade out. Small arrows either side change sets. */
 #quote-numbers {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
     margin-top: 64px;
+}
+
+/* Clips sideways only, so hover underlines and focus rings above and below
+   the numbers aren't cut off. Its width is set by script to the widest set. */
+.numbers-window {
+    overflow-x: clip;
+    overflow-y: visible;
 }
 
 #quote-numbers ol {
@@ -1299,17 +1325,39 @@ html.achievements-open {
     margin: 0;
     padding: 0;
     display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    row-gap: 6px;
+    flex-wrap: nowrap;
+    width: max-content;
+    transition: transform 400ms ease;
     font-size: 19px;
     font-weight: 700;
     line-height: 1.2;
 }
 
+/* Applied for one frame when the set is placed without animating (on load
+   and on resize). */
+#quote-numbers ol.no-slide,
+#quote-numbers ol.no-slide li {
+    transition: none;
+}
+
 #quote-numbers li {
     display: flex;
     color: #fff;
+    opacity: 0;
+    visibility: hidden; /* out of the set: can't be clicked or tabbed to */
+    transition: opacity 400ms ease, visibility 0s 400ms;
+}
+
+#quote-numbers li.in-set {
+    opacity: 1;
+    visibility: visible;
+    transition: opacity 400ms ease, visibility 0s;
+}
+
+/* The last number in a set has no "|" after it. Hidden rather than removed,
+   so the numbers keep their positions. */
+#quote-numbers li.set-end::after {
+    visibility: hidden;
 }
 
 #quote-numbers li:not(:last-child)::after {
@@ -1322,7 +1370,7 @@ html.achievements-open {
     color: rgba(255, 255, 255, 0.38);
 }
 
-#quote-numbers button {
+#quote-numbers ol button {
     padding: 0;
     border: 0;
     background: none;
@@ -1331,16 +1379,56 @@ html.achievements-open {
     cursor: pointer;
 }
 
-#quote-numbers button:disabled {
+#quote-numbers ol button:disabled {
     cursor: default;
 }
 
-#quote-numbers button[aria-current] {
+#quote-numbers ol button[aria-current] {
     color: #ff3b30;
 }
 
-#quote-numbers button:not(:disabled):hover {
+#quote-numbers ol button:not(:disabled):hover {
     text-decoration: underline;
+}
+
+/* Small arrows: the big arrows' art (images/up-arrow.png turned sideways) at
+   about the height of the numbers. Hidden when there's no set that way; the
+   space stays, so the row doesn't move. */
+.numbers-shift {
+    --arrow-w: 26px;
+    flex-shrink: 0;
+    position: relative;
+    width: var(--arrow-w);
+    height: calc(var(--arrow-w) * 416 / 490);
+    padding: 0;
+    border: 0;
+    background: none;
+    cursor: pointer;
+}
+
+.numbers-shift::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: calc(var(--arrow-w) * 500 / 490);
+    height: calc(var(--arrow-w) * 726 / 490);
+    background: url(images/up-arrow.png) center / contain no-repeat;
+    transform: translate(-50%, -50%) rotate(-90deg);
+}
+
+.numbers-shift.next::before {
+    transform: translate(-50%, -50%) rotate(90deg);
+}
+
+.numbers-shift.hidden {
+    visibility: hidden;
+}
+
+#quote-count {
+    margin: 14px 0 0;
+    font-size: 16px;
+    color: rgba(255, 255, 255, 0.7);
 }
 
 @media screen and (max-width: 700px) {
