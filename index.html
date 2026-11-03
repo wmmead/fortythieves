@@ -97,6 +97,9 @@
                     </div>
                 </li>
                 <li>
+                    <a id="achievements-btn" class="action-bttn" href="#">achievements</a>
+                </li>
+                <li>
                     <a id="resetstats" class="action-bttn" href="#">reset your stats</a>
                 </li>
             </ul>
@@ -196,6 +199,32 @@
                 </div>
             </div>
         </div>
+    </div>
+    <!-- Achievements: drops in from the top while #container slides down out
+         of view (js/achievements.js). Escape slides it back. Visual pass only
+         for now: one sample quote and a sample 12-of-40 state, filled in by
+         renderSampleAchievements() until the real quote data exists. -->
+    <!-- A div, not a <section>: the game code and styles.css treat every
+         <section> on the page as a tableau pile. role="region" gives it the
+         same meaning to screen readers. -->
+    <div id="achievements" role="region" aria-labelledby="achievements-title" tabindex="-1">
+        <div id="achievements-badge">
+            <div id="achievements-art">
+                <p class="logo-text"><span>forty</span> <span>thieves</span></p>
+            </div>
+            <h2 id="achievements-title">Achievements</h2>
+        </div>
+        <div id="quote-viewer">
+            <button type="button" class="quote-arrow prev" aria-label="previous quote"></button>
+            <figure id="quote">
+                <blockquote id="quote-text"></blockquote>
+                <figcaption id="quote-source"></figcaption>
+            </figure>
+            <button type="button" class="quote-arrow next" aria-label="next quote"></button>
+        </div>
+        <nav id="quote-numbers" aria-label="collected quotes">
+            <ol></ol>
+        </nav>
     </div>
 </body>
 </html>
