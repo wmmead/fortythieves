@@ -153,11 +153,17 @@ export async function initGame() {
         // Stats go up with the board, before the deal, as in startNewGame(),
         // rather than appearing only once the last card lands.
         deleteZeroMoveRecords();
+        // The new record has to exist before the stats are drawn. Stats skip
+        // whichever game currentGameId names (the one in progress), and on a
+        // fresh load that id still points at the last game of the previous
+        // visit, which would leave that game out of the numbers until the next
+        // redraw. No moves can happen during the deal, so creating it early
+        // is safe.
+        createNewGameRecord();
         updateGameStatsInfo();
         await distributeCards(shuffledDeck);
         updateDeckCounter();
         stackDiscard(); // size the (empty) discard zone now that card dimensions are known
-        createNewGameRecord();
         maybeAutoShowInstructions(); // first-visit only: opens 2s after the deal completes
     } finally {
         dealing = false;

@@ -690,7 +690,6 @@ h1 span:last-of-type {
 #divider {
     grid-row: 4;
     grid-column: 1 / -1;
-    /* background-image: url(images/background6.jpg); */
     background-color: rgba(33, 18, 86, 0.8);
     height: 15px;
     border-radius: 5px;

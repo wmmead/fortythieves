@@ -5,14 +5,23 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Forty Thieves Solitaire</title>
 
-    <!-- Normalize CSS -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/normalize/8.0.1/normalize.min.css" integrity="sha512-NhSC1YmyruXifcj/KFRWoC561YpHpc5Jtzgvbuzx5VozKpWvQ+4nXhPdFgmx8xqexRcpAglTj9sIBWINXa8x5w==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <!-- Favicon: favicon.ico (16/32/48px, with a thin white outline so the
+         black spade still shows on dark tab bars) and a home-screen icon for
+         iOS on an opaque background. Both are made from images/favicon.png. -->
+    <link rel="icon" href="favicon.ico" sizes="16x16 32x32 48x48">
+    <link rel="apple-touch-icon" href="images/apple-touch-icon.png">
 
-    <!-- Google Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Jomhuria&family=PT+Sans+Narrow:wght@400;700&display=swap" rel="stylesheet">
-    
+    <!-- Normalize CSS v8.0.1, self-hosted (same file cdnjs served) -->
+    <link rel="stylesheet" href="normalize/normalize.min.css">
+
+    <!-- Fonts, self-hosted (fonts.css + fonts/). The two latin files the
+         first screen needs are preloaded so the download starts before the
+         CSS is parsed; crossorigin is required on font preloads even for
+         same-origin files, or the browser fetches them twice. -->
+    <link rel="preload" href="fonts/jomhuria-400-latin.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="fonts/pt-sans-narrow-400-latin.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="stylesheet" href="fonts.css?v=1.0">
+
     <!-- Animated background (gradients + star fields) -->
     <link rel="stylesheet" href="background.css?v=1.0">
 
