@@ -694,6 +694,7 @@ h1 span:last-of-type {
     background-color: rgba(33, 18, 86, 0.8);
     height: 15px;
     border-radius: 5px;
+    opacity: 0;
 }
 
 #deck {
@@ -1029,25 +1030,58 @@ section {
 }
 
 .win-container {
-    height: 200px;
+    min-height: 200px;
 }
 
-/* Winning styles */
+/* End-of-game message (js/ui.js showWinScreen()), set straight on the
+   background where the tableau was: a heading across the top, then the quote
+   earned (on a full-points win) with the achievements and new game buttons
+   beside it. */
 #win {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 200px;
-    background-color: rgba(255, 255, 255, 0.5);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 20px;
-    border-radius: 10px;
+    grid-column: 1 / -1; /* #tableau-container is still a 10-column grid */
+    padding-top: 30px;
+    color: #fff;
 }
+
 #win h2 {
-    text-align: center;
+    margin: 0 0 24px;
+    font-size: 32px;
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+#win .win-body {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 20px 56px;
+}
+
+#win .win-quote {
+    margin: 0;
+    max-width: 30em;
+    font-size: 20px;
+    font-weight: 700;
+    line-height: 1.35;
+}
+
+#win .win-quote blockquote {
+    margin: 0;
+    text-indent: -0.3em;
+}
+
+/* Regular weight: the project only has PT Sans Narrow in 400 and 700. */
+#win .win-quote figcaption {
+    font-weight: 400;
+}
+
+#win .win-buttons {
+    display: flex;
+    gap: 12px;
+}
+
+#win .win-quote cite {
+    font-style: normal;
 }
 
 @keyframes pop-forward {
@@ -1239,6 +1273,12 @@ html.achievements-open {
     font-size: 24px;
     line-height: 1.35;
     transition: opacity 150ms ease; /* = FADE_MS in js/achievements.js */
+}
+
+/* Nothing collected yet, or only one quote: no arrows to move with. Hidden
+   rather than removed so the quote stays centred between their spaces. */
+#quote-viewer.no-arrows .quote-arrow {
+    visibility: hidden;
 }
 
 /* Briefly faded out while the quote is swapped (showQuote()). */
@@ -1518,25 +1558,17 @@ html.achievements-open {
     }
 
     #win {
-        /* position: static; */
-        /* height: auto; */
-        padding: 20px 0;
-        flex-direction: column;
+        padding: 20px 15px 0;
     }
 
     #win h2 {
-        text-align: center;
-        padding: 0 15px;
+        font-size: 20px;
     }
 
     #win-statsgraph {
         width: 70%;
         max-width: 300px;
         margin: 20px auto 0 auto;
-    }
-
-    #win .thieves {
-        display: none;
     }
 }
 

@@ -1,3 +1,4 @@
+import { renderSource } from './achievements.js';
 import { shuffledDeck, setSelectedCard, isValidTableauMove, isValidFoundationMove, getRefreshCost, olenMode, canUndo, canAutoComplete } from './game.js';
 import { shakeElement } from './animation.js';
 import { getGameStatistics } from './stats.js';
@@ -506,18 +507,59 @@ export function resetGameStatsInfo(){
 /* --------- SCREEN MANAGER ----------- */
 
 // Shows the win overlay by updating the win div's class.
-export function showWinScreen( winType ) {
-    let message;
+// Shows the end-of-game message where the tableau was. Two kinds:
+// - 'win' (all 728 points): the quote earned (award from awardQuote(),
+//   { quote, isNew }), labelled as a new achievement only if it's new.
+// - 'clear' (foundations built, points lost): just the message.
+// Both use the same layout: heading across the top, then the quote (if any)
+// with the achievements and new game buttons beside it.
+export function showWinScreen( winType, award = null ) {
     const tableau = document.querySelector('#tableau-container');
     tableau.className = 'win-container';
-    if( winType === 'clear'){
-        message = `<img src="images/club-diamond-characters.png" alt="club and diamond" class="thieves"><div><h2>You built the foundations,<br>but the thieves stole some<br>of your points</h2><a href="#" class="newgame action-bttn center-text">new game</a></div><img src="images/spade-heart-characters.png" alt="spade and heart" class="thieves">`;
+
+    const win = document.createElement('div');
+    win.id = 'win';
+    win.className = 'pop';
+
+    const heading = document.createElement('h2');
+    if (winType === 'clear') {
+        heading.textContent = 'You built the foundations, but the thieves stole some of your points.';
+    } else if (award && !award.isNew) {
+        heading.textContent = 'You won and captured all the points. This quote is already in your collection.';
     } else {
-        message = `<img src="images/club-diamond-characters.png" alt="club and diamond" class="thieves"><div><h2>Congratulations!<br>You won and scored all<br>the possible points!</h2><a href="#" class="newgame action-bttn center-text">new game</a></div><img src="images/spade-heart-characters.png" alt="spade and heart" class="thieves">`;
+        heading.textContent = 'You won and captured all the points. New achievement unlocked!';
     }
-    tableau.innerHTML = `<div id="win" class="pop">
-                ${message}
-                </div>`;
+
+    const body = document.createElement('div');
+    body.className = 'win-body';
+    if (award) {
+        const figure = document.createElement('figure');
+        figure.className = 'win-quote';
+        const text = document.createElement('blockquote');
+        text.textContent = `\u201C${award.quote.text}\u201D`;
+        const source = document.createElement('figcaption');
+        renderSource(source, award.quote); // "— Author, source"
+        figure.append(text, source);
+        body.append(figure);
+    }
+    // Achievements (left) and new game, side by side. The achievements button
+    // is handled with the menu's achievements item in events.js.
+    const buttons = document.createElement('div');
+    buttons.className = 'win-buttons';
+    const achievements = document.createElement('a');
+    achievements.href = '#';
+    achievements.className = 'achievements-link action-bttn center-text';
+    achievements.textContent = 'achievements';
+    const newGame = document.createElement('a');
+    newGame.href = '#';
+    newGame.className = 'newgame action-bttn center-text';
+    newGame.textContent = 'new game';
+    buttons.append(achievements, newGame);
+    body.append(buttons);
+
+    win.append(heading, body);
+    tableau.replaceChildren(win);
+
     // On small screens the header stats graphic is hidden, so show it in the win screen instead
     if (window.matchMedia('(max-width: 660px)').matches) {
         const graphDiv = document.createElement('div');

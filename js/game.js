@@ -4,6 +4,8 @@ import { getCardMoveDelta, animateCardMove, animateMoveFrom } from './animation.
 import { setupEventListeners } from './events.js';
 import { createNewGameRecord, updateCurrentGameStats, deleteZeroMoveRecords, getGameStatistics } from './stats.js';
 import { playFullDealSound, playUndoSound, playWinSound, playFinishNoWinSound } from './audio.js';
+import { awardQuote } from './quoteCollection.js';
+import { refreshAchievements } from './achievements.js';
 
 /*
 ================================================================================
@@ -623,15 +625,20 @@ function checkWinCondition() {
     updateEndGameStats(mostRecentGame.gamesPlayed, mostRecentGame.gamesWon, mostRecentGame.averageScore);
 
     let winType;
+    let award = null;
     if( score == 728 ){
         winType = 'win';
+        // A full-points win earns a quote (new, or one already collected).
+        // The achievements page is refreshed to show it next time it opens.
+        award = awardQuote();
+        refreshAchievements(award.quote.id);
         playWinSound();
     } else {
         winType = 'clear';
         playFinishNoWinSound();
     }
     // changes the message in the win screen based on the type of win
-    showWinScreen(winType);
+    showWinScreen(winType, award);
     setStatsDisplayFlag(true);
 }
 

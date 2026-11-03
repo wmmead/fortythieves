@@ -1,3 +1,5 @@
+import { clearCollection } from './quoteCollection.js';
+
 // Generate a unique ID for each game
 function generateGameId() {
   return 'game_' + Date.now() + '_' + Math.floor(Math.random() * 100000);
@@ -85,6 +87,8 @@ export function deleteAllSolitaireUserData() {
   localStorage.removeItem('solitaireGameStats');
   // Remove the current game ID
   localStorage.removeItem('currentGameId');
+  // Collected quotes go too (decided in ROADMAP.md, Phase 1)
+  clearCollection();
   // (Optional) Remove any other keys your game uses in localStorage
   // Example: localStorage.removeItem('someOtherKey');
 }

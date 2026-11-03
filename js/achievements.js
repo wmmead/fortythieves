@@ -13,9 +13,11 @@ left/right arrow keys) step through them, wrapping at either end; the number
 row jumps straight to one, with the quote showing in red. Uncollected slots
 are grey and disabled.
 
-SHOWCASE (below) currently treats every quote as collected so the viewer can
-be tried out. Still to come (ROADMAP.md, Phase 1): saving collected quote ids
-in localStorage and unlocking one on each win.
+Collected quotes come from quoteCollection.js (saved in localStorage, in the
+order won). With none collected yet, the page says how to earn one. After a
+win or a stats reset, refreshAchievements() brings the page up to date.
+SHOWCASE (below) can be switched on to treat every quote as collected, for
+trying out the viewer.
 
 FUNCTIONS
 - openAchievements(): slide the page in and the game out.
@@ -24,6 +26,10 @@ FUNCTIONS
 - isAchievementsOpen(): true while the page is showing (or sliding in).
 - initAchievements(): build the number row and wire up the viewer (on load).
 - showQuote(index): show collected quote number index (0-based).
+- refreshAchievements(showId): re-read the collection, optionally showing
+  the quote with id showId (used after a win, to show the quote just won).
+- renderSource(el, quote, dash): "— Author, source" into el (also used by
+  the win screen).
 
 The number row shows a set of 15 numbers (8 on narrow screens) with small
 arrows to move between sets; it also follows along when the quote showing
@@ -31,6 +37,7 @@ moves outside the set. A count of collected quotes sits below it.
 */
 
 import { QUOTES } from './quotes.js';
+import { getCollectedQuotes } from './quoteCollection.js';
 
 const OPEN_CLASS = 'achievements-open'; // on <html>; styles.css does the sliding
 // Also on <html>, from the moment the page opens until it has finished
@@ -98,22 +105,26 @@ export function toggleAchievements() {
 
 /* ---------- quote viewer ---------- */
 
-// SHOWCASE: every quote counts as collected, in the order they appear in
-// quotes.js, so the whole viewer can be tried out. Turned off once wins
-// actually unlock quotes; collectedQuotes() then returns only the player's
-// quotes, in the order they were collected.
-const SHOWCASE = true;
+// SHOWCASE: set to true to treat every quote as collected (in quotes.js
+// order) and try out the whole viewer. Leave false for real play.
+const SHOWCASE = false;
+
+const EMPTY_MESSAGE = 'Win at least one game, and get all the points, to earn an achievement.';
+
+// The collection as of the last refreshAchievements(), in the order won.
+let collected = [];
 
 function collectedQuotes() {
-    return SHOWCASE ? QUOTES : [];
+    return collected;
 }
 
 let current = 0; // index into collectedQuotes() of the quote showing
 const FADE_MS = 150; // matches #quote's transition in styles.css
 
-// "– Author, source", with *titles* in the source wrapped in <cite>.
-function renderSource(el, quote) {
-    el.textContent = `– ${quote.author}`;
+// "— Author, source", with *titles* in the source wrapped in <cite>. Used by
+// the achievements page and the win screen; pass dash = '' for no dash.
+export function renderSource(el, quote, dash = '\u2014') {
+    el.textContent = dash ? `${dash} ${quote.author}` : quote.author;
     if (!quote.source) return;
     el.append(', ');
     quote.source.split(/(\*[^*]+\*)/).forEach(part => {
@@ -127,14 +138,25 @@ function renderSource(el, quote) {
     });
 }
 
+// No quote (nothing collected yet): the how-to-earn-one message instead.
 function fillQuote(quote) {
-    document.getElementById('quote-text').textContent = `“${quote.text}”`;
-    renderSource(document.getElementById('quote-source'), quote);
+    const text = document.getElementById('quote-text');
+    const source = document.getElementById('quote-source');
+    document.getElementById('quote').classList.toggle('empty', !quote);
+    if (!quote) {
+        text.textContent = EMPTY_MESSAGE;
+        source.textContent = '';
+        return;
+    }
+    text.textContent = `“${quote.text}”`;
+    renderSource(source, quote);
 }
 
 function updateNumbers() {
+    const count = collectedQuotes().length;
     document.querySelectorAll('#quote-numbers ol button').forEach((btn, i) => {
-        if (i === current) btn.setAttribute('aria-current', 'true');
+        // Nothing is "current" when nothing has been collected yet.
+        if (i === current && i < count) btn.setAttribute('aria-current', 'true');
         else btn.removeAttribute('aria-current');
     });
     followCurrent();
@@ -252,8 +274,11 @@ export function showQuote(index) {
 function lockQuoteHeight() {
     const quotes = collectedQuotes();
     const figure = document.getElementById('quote');
-    if (!quotes.length) return;
     figure.style.minHeight = '';
+    if (!quotes.length) {
+        fillQuote(null);
+        return;
+    }
     let tallest = 0;
     for (const quote of quotes) {
         fillQuote(quote);
@@ -264,7 +289,7 @@ function lockQuoteHeight() {
 }
 
 function buildNumbers() {
-    const collected = collectedQuotes().length;
+    const collectedCount = collectedQuotes().length;
     const list = document.querySelector('#quote-numbers ol');
     list.innerHTML = '';
     setStart = 0;
@@ -273,7 +298,7 @@ function buildNumbers() {
         const btn = document.createElement('button');
         btn.type = 'button';
         btn.textContent = n;
-        if (n > collected) {
+        if (n > collectedCount) {
             // Not collected yet: grey and not clickable.
             btn.disabled = true;
             btn.setAttribute('aria-label', `quote ${n}, not collected yet`);
@@ -286,14 +311,24 @@ function buildNumbers() {
     }
 }
 
+export function refreshAchievements(showId) {
+    collected = SHOWCASE ? QUOTES : getCollectedQuotes();
+    buildNumbers();
+    const showIndex = collected.findIndex(q => q.id === showId);
+    current = showIndex >= 0 ? showIndex : 0;
+    fillQuote(collected[current]);
+    updateNumbers();
+    updateCount();
+    // The big arrows only make sense with two or more quotes to move between.
+    document.getElementById('quote-viewer').classList.toggle('no-arrows', collected.length < 2);
+    lockQuoteHeight();
+    layoutSet(false);
+}
+
 export function initAchievements() {
     const page = document.getElementById('achievements');
     page.inert = true; // starts closed
-    buildNumbers();
-    current = 0;
-    fillQuote(collectedQuotes()[0]);
-    updateNumbers();
-    updateCount();
+    refreshAchievements();
 
     page.querySelector('.quote-arrow.prev').addEventListener('click', () => showQuote(current - 1));
     page.querySelector('.quote-arrow.next').addEventListener('click', () => showQuote(current + 1));

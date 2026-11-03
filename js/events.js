@@ -8,7 +8,7 @@ import { deleteAllSolitaireUserData } from './stats.js';
 
 import { playNewGameSound } from './audio.js';
 
-import { toggleAchievements, closeAchievements, isAchievementsOpen } from './achievements.js';
+import { toggleAchievements, closeAchievements, isAchievementsOpen, refreshAchievements } from './achievements.js';
 
 
 export function setupEventListeners() {
@@ -44,7 +44,8 @@ export function setupEventListeners() {
         const newGame = e.target.closest('.newgame');
         const howToPlay = e.target.closest('#howtoplay');
         const closeInstr = e.target.closest('#closeinstructions');
-        const achievementsBtn = e.target.closest('#achievements-btn');
+        // The menu item, or the button on the win screen
+        const achievementsBtn = e.target.closest('#achievements-btn, .achievements-link');
 
         if (achievementsBtn) {
             e.preventDefault(); // it's an <a href="#">
@@ -103,8 +104,9 @@ export function setupEventListeners() {
         }
         if (confirmOk) {
             closeConfirmDialog();
-            // deletes all data
+            // deletes all data, collected quotes included
             deleteAllSolitaireUserData();
+            refreshAchievements(); // back to the "win a game to earn one" message
             // sets the data in the stats window
             resetGameStatsInfo();
             // this flag is used in the startNewGame function to determine what is shown in the stats window
