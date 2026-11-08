@@ -1,4 +1,4 @@
-import { moveCardToCandidate, drawCard, refreshDeck, handleCardClick, handleCardDoubleClick, handleUndoRequest, autoCompleteToFoundations } from './gameActions.js';
+import { moveCardToCandidate, drawCard, refreshDeck, handleCardClick, handleCardDoubleClick, handleUndoRequest, autoCompleteToFoundations, whenBoardSettled } from './gameActions.js';
 
 import { startNewGame, isDealing, selectedCard, setStatsDisplayFlag, setOlenMode, canUndo } from './game.js';
 
@@ -10,6 +10,62 @@ import { playNewGameSound } from './audio.js';
 
 import { toggleAchievements, closeAchievements, isAchievementsOpen, refreshAchievements } from './achievements.js';
 
+
+/* ---------- taps on the board: single or double ----------
+   Double taps are worked out here from the click events, not from the
+   browser's 'dblclick' event. The browser's click count (e.detail) can keep
+   counting across clicks made close together in quick succession, even on
+   different cards: after a double tap moved a card, a quick tap on the next
+   card up the same column (only a few pixels away) can arrive as click 3,
+   and its second tap as click 4. The old code skipped every click with a
+   count above 1, and 'dblclick' is tied to the count reaching 2, so both
+   taps could be lost until the player paused.
+
+   The rule now: a tap is the second half of a double tap if it lands on the
+   same card as the tap before, that earlier tap selected the card, and it
+   came quickly (the browser counted it as a repeat click, or, on the iPad,
+   where that count isn't reliable, within DOUBLE_TAP_MS). Any other tap is a
+   single tap, whatever its click count. */
+const DOUBLE_TAP_MS = 400;
+let lastTap = { card: null, kind: null, time: 0 };
+
+function handleBoardTap(e, card, candidate) {
+    const now = performance.now();
+    const isCard = card && !card.classList.contains('temp');
+    let kind;
+    if (candidate && selectedCard) {
+        kind = 'candidate';
+    } else if (isCard && !card.classList.contains('candidate')) {
+        const repeat = card === lastTap.card && (e.detail > 1 || now - lastTap.time < DOUBLE_TAP_MS);
+        if (repeat && lastTap.kind === 'select') kind = 'double';
+        // The second tap of a double tap on a card just moved, or on a target
+        // just played onto: ignore it, as before.
+        else if (repeat) kind = 'ignore';
+        else kind = 'select';
+    } else {
+        kind = 'clear';
+    }
+    lastTap = { card: isCard ? card : null, kind, time: now };
+    if (kind === 'ignore') return;
+
+    // While a card is flying, wait for it to land (see whenBoardSettled()).
+    whenBoardSettled(() => {
+        if (kind === 'candidate') {
+            // Re-checked: the highlight may have been cleared by a landing.
+            if (candidate.classList.contains('candidate') && selectedCard) {
+                moveCardToCandidate(candidate, selectedCard);
+            } else if (isCard) {
+                handleCardClick(card);
+            }
+        } else if (kind === 'double') {
+            handleCardDoubleClick(card);
+        } else if (kind === 'select') {
+            handleCardClick(card);
+        } else {
+            clearSelection();
+        }
+    });
+}
 
 export function setupEventListeners() {
     // Debounce so the full restack only runs once the resize settles,
@@ -129,17 +185,7 @@ export function setupEventListeners() {
             startNewGame(); // closes the menu itself
             return;
         }
-        if (candidate && selectedCard) {
-            moveCardToCandidate(candidate, selectedCard);
-        } else if (card && !card.classList.contains('temp') && !card.classList.contains('candidate')) {
-            // A double-click fires two 'click' events (detail 1, then 2) before
-            // 'dblclick' — skip the second one so it doesn't also select/play
-            // the single-tap sound right on top of the double-click handling.
-            if (e.detail > 1) return;
-            handleCardClick(card);
-        } else {
-            clearSelection();
-        }
+        handleBoardTap(e, card, candidate);
     });
 
     // Close the instructions popup / reset-stats confirmation / achievements page on Escape
@@ -188,13 +234,6 @@ export function setupEventListeners() {
         }
     });
 
-    // Add double-click event for auto-move
-    document.addEventListener('dblclick', function(e) {
-        const card = e.target.closest('.card');
-        if (card && !card.classList.contains('temp') && !card.classList.contains('candidate')) {
-            handleCardDoubleClick(card);
-        }
-    });
 
     // --- HOLD HEADER FOR 2 SECONDS HANDLER ---
     // Scoped to main's h1 specifically — the page now has other <h1>s too

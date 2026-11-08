@@ -25,6 +25,7 @@ CARD MOVEMENT & ANIMATION
 -------------------------
 - moveCardToCandidate(candidate, card): Moves a card to the chosen candidate target, animates the move, and updates game state.
 - moveCardToTarget(target, card): Internal utility to move a card to a specific target (calls moveCardToCandidate).
+- whenBoardSettled(action): Run a board tap now, or as soon as every card in flight has landed.
 
 AUTOMATIC MOVE HANDLING (DOUBLE-CLICK)
 --------------------------------------
@@ -86,6 +87,7 @@ export function showCandidateTargets(card) {
 
 export function handleCardClick(card) {
     clearSelection();
+    if (!card.isConnected) return; // a delayed tap on a card a new deal removed
 
     if(!olenMode){
         const legalMove = checkCardPosition(card);
@@ -156,6 +158,7 @@ export function moveCardToCandidate(candidate, card, onComplete) {
     }
 
     card.dataset.moving = 'true';
+    movesInFlight++;
     const selectedRect = card.getBoundingClientRect();
     const candidateRect = candidate.getBoundingClientRect();
     const deltaX = candidateRect.left - selectedRect.left;
@@ -170,8 +173,34 @@ export function moveCardToCandidate(candidate, card, onComplete) {
         // Last, so anything chaining off this move sees a fully settled board —
         // including the win screen, if that move was the one that finished it.
         if (onComplete) onComplete();
+        movesInFlight--;
+        runSettledActions();
     });
     return true;
+}
+
+/* ---------- taps while a card is in flight ----------
+   A move only lands in the DOM when its 300ms animation finishes. Until then
+   the board is out of date: the flying card still counts as the bottom of its
+   old column (so the card above it can't be picked), the foundation it's
+   heading for doesn't have it yet (so the next card can't go there), and the
+   landing clears every selection. A tap acted on during that window could be
+   refused or wiped out, and to the player it looked like the tap just didn't
+   register. So board taps made while a card is flying wait and run, in
+   order, the moment it lands. */
+let movesInFlight = 0;
+const settledQueue = [];
+
+export function whenBoardSettled(action) {
+    settledQueue.push(action);
+    runSettledActions();
+}
+
+function runSettledActions() {
+    // An action can start another move; the rest then wait for that one too.
+    while (movesInFlight === 0 && settledQueue.length) {
+        settledQueue.shift()();
+    }
 }
 
 function moveCardToTarget(target, card) {
@@ -184,7 +213,7 @@ function moveCardToTarget(target, card) {
    AUTOMATIC MOVE HANDLING (DOUBLE-CLICK)
 ============================================================================ */
 export function handleCardDoubleClick(card) {
-    
+    if (!card.isConnected) return; // a delayed tap on a card a new deal removed
     if(!olenMode){
         const legalMove = checkCardPosition(card);
         if(!legalMove){

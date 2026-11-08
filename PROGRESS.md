@@ -977,6 +977,23 @@ Headless Chrome over the DevTools Protocol at 1512×860 and 390×844 throughout.
 ### Merged
 `feature/achievements` merged into `main` and pushed. Bill expects minor design and functionality changes to follow, on `main`.
 
+## Session: November 7, 2026 (later) — fix: taps not registering during fast play
+
+Bill noticed that, on the laptop trackpad and on the iPad, a tap on a card occasionally didn't register, mostly when double-tapping cards quickly. Three causes found and fixed.
+
+### Causes
+1. **Taps during a card's flight.** A move only reaches the DOM when its 300ms animation finishes. Until then the flying card still counts as the bottom of its old column (`checkCardPosition()` silently refused the card above it), the target foundation doesn't have it yet, and the landing's `clearSelection()` wiped anything selected meanwhile.
+2. **The browser's click count.** `e.detail` can keep counting across clicks made close together in quick succession, even on different cards. After a double tap moved a card, a quick double tap on the next card up the same column could arrive as clicks 3 and 4. The old click handler skipped everything with `detail > 1`, and the `dblclick` event is tied to the count reaching 2, so both taps were lost. (Seen by accident: the first test run had stale cached JS, and the old code ignored a tap sent as click 3.)
+3. **iOS double-tap-to-zoom.** The board allowed it, so Safari could hold back or swallow fast taps.
+
+### Fixes
+- `js/gameActions.js`: a `movesInFlight` counter in `moveCardToCandidate()`, and `whenBoardSettled(action)`. Board taps made while a card is flying are queued and run in order the moment it lands (after its `onComplete`, so auto-complete chaining is unaffected). `handleCardClick()` / `handleCardDoubleClick()` ignore a card that's no longer in the DOM (a queued tap across a new deal).
+- `js/events.js`: the `dblclick` listener is gone; `handleBoardTap()` decides single vs. double itself. A tap is the second half of a double if it's on the same card as the previous tap, that tap selected it, and it came quickly (`e.detail > 1`, or within `DOUBLE_TAP_MS` = 400ms for the iPad, where the count may not be reliable). A repeat tap on a card just moved or a target just played onto is ignored, as before. Everything else is a single tap, whatever its click count. Candidate taps are re-checked when they run, since a landing may have cleared the highlight.
+- `styles.css`: `touch-action: manipulation` on `main` (no double-tap zoom on the board; pinch zoom still works).
+
+### Verified
+`node --check` on both modules. Headless Chrome with real mouse events on dealt boards: double tap as clicks 1,2 moved the card; as clicks 3,4 moved it (old code: ignored); two clicks at count 1, 150ms apart (iPad-like) moved it; 600ms apart gave two single taps (selected, not moved); a tap on the card above during the flight selected it once the move landed (old code: nothing); select then tap a target moved the card. No console errors. Bill confirmed it feels better on the laptop; iPad playtest pending. If double tap ever breaks on the iPad, the `touch-action` line is the first suspect.
+
 ## Remaining known issues / possible next steps
 
 - **A ~10-20 ms audio remnant on reload and on the resume button** (iPad only, accepted) — the OS output buffer drains after the master gain is cut; see the September 5 master-gain session. Irreducible from JavaScript, and below the threshold Bill considers noticeable.
@@ -986,5 +1003,6 @@ Headless Chrome over the DevTools Protocol at 1512×860 and 390×844 throughout.
 - **Achievements, still open** (November 2): the win-screen reveal animation (still the old `.pop`), the new game button design, and whether to keep the horizontal divider. Repeat-quote heading wording was a guess. Lao Tzu quote translation (TODO in `js/quotes.js`). `images/club-diamond-characters.png` and `images/spade-heart-characters.png` are unused since the win-screen redesign; delete once the design settles. Bill is playtesting on the iPad.
 - **Phone layout slightly wider than the screen** (≤490px, noticed November 2): the score star image and the background texture extend a few pixels past the right edge, so the page can scroll sideways a little. Pre-existing. Since November 7 it also matters for the achievements page: the overflow (405px on a 390px screen) makes the browser zoom out, and the close arrow ends up partly below the bottom edge. Fixing the overflow should fix both.
 - **`NEW_QUOTE_CHANCE` at 0.4** (November 7) is on trial; Bill is judging how it feels.
+- **Fast-tap fix needs an iPad playtest** (November 7, later): confirm taps register during fast play and that double tap still works with `touch-action: manipulation`.
 - **Shortcut hint styling** (September 6) — deliberately plain; `.action-bttn .shortcut` and `.platform-mac .action-bttn .shortcut` are the hooks if Bill adjusts the fonts.
 - No other tracked items. (Done June 23: mobile discard layout, discard zone styling, undo-of-a-discard-play jump. Done August 29: first-load autoplay block on `full-deal.mp3`, fixed by gating the initial deal behind the new intro overlay's "Play Game" click. Done September 14: the auto-complete graphics — Bill's `empty-thief.png` / `up-arrow.png` are in. Done October 21: the now-playing display, replaced by console logs.)

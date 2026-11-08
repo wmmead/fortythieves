@@ -930,6 +930,10 @@ main {
     grid-template-columns: repeat(10, 1fr);
     gap: 10px;
     position: relative;
+    /* No double-tap-to-zoom on the board. Otherwise iOS Safari holds a tap
+       back to see whether a second one follows, and fast tapping on cards
+       can have taps swallowed as zoom attempts. Pinch zoom still works. */
+    touch-action: manipulation;
 }
 
 section {
