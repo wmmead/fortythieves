@@ -8,6 +8,8 @@ import { deleteAllSolitaireUserData } from './stats.js';
 
 import { playNewGameSound } from './audio.js';
 
+import { toggleAchievements, closeAchievements, isAchievementsOpen, refreshAchievements } from './achievements.js';
+
 
 export function setupEventListeners() {
     // Debounce so the full restack only runs once the resize settles,
@@ -42,7 +44,22 @@ export function setupEventListeners() {
         const newGame = e.target.closest('.newgame');
         const howToPlay = e.target.closest('#howtoplay');
         const closeInstr = e.target.closest('#closeinstructions');
+        // The menu item, or the button on the win screen
+        const achievementsBtn = e.target.closest('#achievements-btn, .achievements-link');
 
+        if (achievementsBtn) {
+            e.preventDefault(); // it's an <a href="#">
+            closeMenu();
+            toggleAchievements(); // closes the page if it's already open
+            return;
+        }
+        // While the achievements page is open the menu stays on top of it, but
+        // only its sound controls and the achievements item work; the game
+        // buttons are greyed out (styles.css) and ignored here.
+        if (isAchievementsOpen() && (undoBtn || howToPlay || newGame || resetStats)) {
+            e.preventDefault();
+            return;
+        }
         if (howToPlay) {
             e.preventDefault();
             closeMenu();
@@ -87,8 +104,9 @@ export function setupEventListeners() {
         }
         if (confirmOk) {
             closeConfirmDialog();
-            // deletes all data
+            // deletes all data, collected quotes included
             deleteAllSolitaireUserData();
+            refreshAchievements(); // back to the "win a game to earn one" message
             // sets the data in the stats window
             resetGameStatsInfo();
             // this flag is used in the startNewGame function to determine what is shown in the stats window
@@ -124,12 +142,16 @@ export function setupEventListeners() {
         }
     });
 
-    // Close the instructions popup / reset-stats confirmation on Escape
+    // Close the instructions popup / reset-stats confirmation / achievements page on Escape
     document.addEventListener('keydown', function(e) {
         if (e.key === 'Escape') {
             closeInstructions();
             closeConfirmDialog();
+            closeAchievements();
         }
+        // The game is off screen while the achievements page is open, so its
+        // shortcuts (undo, new game) would act on a board the player can't see.
+        if (isAchievementsOpen()) return;
         // Cmd+Z (Mac) / Ctrl+Z (Windows) triggers undo, same as the menu button
         if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key.toLowerCase() === 'z') {
             e.preventDefault(); // keep the browser from undoing text edits instead

@@ -377,7 +377,8 @@ h1 span:last-of-type {
     border-bottom-left-radius: 15px;
     border-bottom-right-radius: 15px; 
     box-shadow: 0px 0px 10px 10px rgba(0, 0, 0, 0.25);*/
-    transition: transform 500ms cubic-bezier(0.075, 0.820, 0.165, 1.000);
+    transition: transform 500ms cubic-bezier(0.075, 0.820, 0.165, 1.000),
+                translate 700ms cubic-bezier(0.65, 0, 0.35, 1); /* = #container's slide; see Achievements */
 }
 
 
@@ -693,6 +694,7 @@ h1 span:last-of-type {
     background-color: rgba(33, 18, 86, 0.8);
     height: 15px;
     border-radius: 5px;
+    opacity: 0;
 }
 
 #deck {
@@ -1028,25 +1030,58 @@ section {
 }
 
 .win-container {
-    height: 200px;
+    min-height: 200px;
 }
 
-/* Winning styles */
+/* End-of-game message (js/ui.js showWinScreen()), set straight on the
+   background where the tableau was: a heading across the top, then the quote
+   earned (on a full-points win) with the achievements and new game buttons
+   beside it. */
 #win {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 200px;
-    background-color: rgba(255, 255, 255, 0.5);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 20px;
-    border-radius: 10px;
+    grid-column: 1 / -1; /* #tableau-container is still a 10-column grid */
+    padding-top: 30px;
+    color: #fff;
 }
+
 #win h2 {
-    text-align: center;
+    margin: 0 0 24px;
+    font-size: 32px;
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+#win .win-body {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 20px 56px;
+}
+
+#win .win-quote {
+    margin: 0;
+    max-width: 30em;
+    font-size: 20px;
+    font-weight: 700;
+    line-height: 1.35;
+}
+
+#win .win-quote blockquote {
+    margin: 0;
+    text-indent: -0.3em;
+}
+
+/* Regular weight: the project only has PT Sans Narrow in 400 and 700. */
+#win .win-quote figcaption {
+    font-weight: 400;
+}
+
+#win .win-buttons {
+    display: flex;
+    gap: 12px;
+}
+
+#win .win-quote cite {
+    font-style: normal;
 }
 
 @keyframes pop-forward {
@@ -1065,6 +1100,446 @@ section {
   animation: pop-forward 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   animation-delay: 0.5s; /* Adds a half-second delay */
   will-change: transform;
+}
+
+/* ============================================================================
+   ACHIEVEMENTS PAGE (js/achievements.js)
+   Opening it adds .achievements-open to <html>: #container slides down by a
+   full viewport height while #achievements drops in from above it, on the
+   same duration and easing so the two move as one. The animated background
+   is fixed behind both, so it stays put and shows through the page.
+============================================================================ */
+#container {
+    transition: transform 700ms cubic-bezier(0.65, 0, 0.35, 1);
+}
+
+.achievements-open #container {
+    transform: translateY(100vh);
+}
+
+/* The menu stays put on top of the page. It lives inside #container, so it
+   gets an equal and opposite slide on the same timing. That uses the separate
+   `translate` property rather than `transform`, which the menu already uses
+   (with its own timing) for opening and closing. */
+#menu {
+    translate: 0 0;
+}
+
+.achievements-open #menu {
+    translate: 0 -100vh;
+}
+
+/* #container (and the menu in it) stacks above the page while the page is
+   open or sliding (.achievements-moving stays on until the slide back has
+   finished), so the menu can be clicked. Nothing else of #container is on
+   screen then. Only during that time: a z-index on #container at other times
+   would put the menu under the deal-time interaction blocker. */
+.achievements-moving #container {
+    z-index: 900;
+}
+
+/* Menu buttons switched off while the page is open (clicks are ignored in
+   js/events.js). Same look as a disabled button. */
+.achievements-open #menu .action-bttn:not(#achievements-btn) {
+    opacity: 0.45;
+    cursor: default;
+}
+
+.achievements-open #menu .action-bttn:not(#achievements-btn):active {
+    background-color: transparent;
+    background-image: linear-gradient(to bottom, #fff, #f8eedb);
+    transform: none;
+}
+
+/* Without this the page could still be scrolled down to the moved game. */
+html.achievements-open {
+    overflow: hidden;
+}
+
+#achievements {
+    position: fixed;
+    inset: 0;
+    z-index: 800;
+    overflow-y: auto; /* short screens: the page scrolls, not the window */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 30px 16px 40px;
+    color: #f4eefc;
+    font-family: "PT Sans Narrow", sans-serif;
+    transform: translateY(-100%);
+    /* visibility flips only after the slide-out finishes, so the page stays
+       visible while it leaves but can't be tabbed into once it's gone. */
+    visibility: hidden;
+    transition: transform 700ms cubic-bezier(0.65, 0, 0.35, 1), visibility 0s 700ms;
+}
+
+.achievements-open #achievements {
+    transform: translateY(0);
+    visibility: visible;
+    transition: transform 700ms cubic-bezier(0.65, 0, 0.35, 1), visibility 0s;
+}
+
+#achievements:focus {
+    outline: none; /* focused by script on open, not by the player */
+}
+
+@media (prefers-reduced-motion: reduce) {
+    #container,
+    #menu,
+    #achievements,
+    .achievements-open #achievements {
+        transition: none;
+    }
+
+    .quote-arrow::before {
+        animation: none;
+    }
+
+    #quote-numbers ol,
+    #quote-numbers li,
+    #quote-numbers li.in-set {
+        transition: none;
+    }
+}
+
+/* The badge at the top: the intro panel's art and logo, smaller, with a
+   label. Everything inside scales off --badge-art (the art's width), using
+   the intro's proportions (a 280px box with 32px text set 155px down). */
+#achievements-badge {
+    --badge-art: 172px;
+    flex-shrink: 0;
+    background-image: url(images/background7.jpg);
+    border: 5px solid #cac4b7;
+    border-radius: 15px;
+    padding: 6px 6px 8px;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.3);
+}
+
+#achievements-art {
+    position: relative;
+    width: var(--badge-art);
+    height: var(--badge-art);
+    background: url(images/introBG.png) center / cover no-repeat;
+}
+
+#achievements-art .logo-text {
+    position: absolute;
+    top: calc(var(--badge-art) * 155 / 280);
+    left: 50%;
+    /* right: 0; */
+    margin: 0;
+    font-family: "Jomhuria", serif;
+    font-size: calc(var(--badge-art) * 32 / 260);
+    line-height: .9em;
+    color: #0d1532;
+    user-select: none;
+}
+
+#achievements-art .logo-text span {
+    display: block;
+    font-size: 1.8em;
+    text-align: center;
+}
+
+#achievements-art .logo-text span:last-of-type {
+    color: #c40c02;
+}
+
+#achievements-badge h2 {
+    margin: 2px 0 0;
+    text-align: center;
+    font-size: 24px;
+    font-weight: 700;
+    line-height: 1.1;
+    color: #1b1b1b;
+}
+
+/* Quote with an arrow either side. The arrows line up with the quote text
+   (not the whole quote + source block), as in the mockup. */
+#quote-viewer {
+    display: grid;
+    grid-template-columns: auto minmax(0, 600px) auto;
+    align-items: start;
+    column-gap: 72px;
+    margin-top: 44px;
+    width: 100%;
+    justify-content: center;
+}
+
+#quote {
+    margin: 0;
+    text-align: center;
+    font-size: 24px;
+    line-height: 1.35;
+    transition: opacity 150ms ease; /* = FADE_MS in js/achievements.js */
+}
+
+/* Nothing collected yet, or only one quote: no arrows to move with. Hidden
+   rather than removed so the quote stays centred between their spaces. */
+#quote-viewer.no-arrows .quote-arrow {
+    visibility: hidden;
+}
+
+/* Briefly faded out while the quote is swapped (showQuote()). */
+#quote.changing {
+    opacity: 0;
+}
+
+#quote blockquote {
+    margin: 0;
+}
+
+#quote figcaption {
+    margin-top: .5em;
+}
+
+#quote cite {
+    font-style: normal;
+}
+
+/* images/up-arrow.png turned on its side. The image is a 500x726 card-sized
+   canvas with the arrow centred, so the rotated ::before is sized to that
+   canvas and centred in the button; the button is the arrow's visible size. */
+.quote-arrow {
+    --arrow-w: 80px;
+    position: relative;
+    width: var(--arrow-w);
+    height: calc(var(--arrow-w) * 416 / 490);
+    margin-top: calc((20px * 1.35 * 2 - var(--arrow-w) * 416 / 490) / 2); /* centre on two lines of quote */
+    padding: 0;
+    border: 0;
+    background: none;
+    cursor: pointer;
+}
+
+.quote-arrow::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: calc(var(--arrow-w) * 500 / 490);
+    height: calc(var(--arrow-w) * 726 / 490);
+    background: url(images/up-arrow.png) center / contain no-repeat;
+    transform: translate(-50%, -50%) rotate(-90deg);
+    /* A slow nudge outward, the same rhythm as the up arrow on the empty deck
+       slot (arrow-bob). It animates `translate`, not `transform`, so it moves
+       left/right on screen and doesn't disturb the centring and rotation. */
+    --arrow-nudge: -12%;
+    animation: arrow-nudge 1.8s ease-in-out infinite;
+}
+
+.quote-arrow.next::before {
+    transform: translate(-50%, -50%) rotate(90deg);
+    --arrow-nudge: 12%;
+}
+
+@keyframes arrow-nudge {
+    0%, 100% { translate: 0 0; }
+    50%      { translate: var(--arrow-nudge) 0; }
+}
+
+/* Number row: one slot per quote. Collected quotes are white and clickable,
+   the one showing is red, uncollected ones are grey and disabled. Each
+   number's trailing "|" takes the number's colour, as in the mockup.
+   Shown a set at a time (js/achievements.js, layoutSet()): the numbers sit
+   on one line that slides inside .numbers-window, which clips it sideways;
+   numbers outside the set fade out. Small arrows either side change sets. */
+#quote-numbers {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    margin-top: 64px;
+}
+
+/* Clips sideways only, so hover underlines and focus rings above and below
+   the numbers aren't cut off. Its width is set by script to the widest set. */
+.numbers-window {
+    overflow-x: clip;
+    overflow-y: visible;
+}
+
+#quote-numbers ol {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: nowrap;
+    width: max-content;
+    transition: transform 400ms ease;
+    font-size: 19px;
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+/* Applied for one frame when the set is placed without animating (on load
+   and on resize). */
+#quote-numbers ol.no-slide,
+#quote-numbers ol.no-slide li {
+    transition: none;
+}
+
+#quote-numbers li {
+    display: flex;
+    color: #fff;
+    opacity: 0;
+    visibility: hidden; /* out of the set: can't be clicked or tabbed to */
+    transition: opacity 400ms ease, visibility 0s 400ms;
+}
+
+#quote-numbers li.in-set {
+    opacity: 1;
+    visibility: visible;
+    transition: opacity 400ms ease, visibility 0s;
+}
+
+/* The last number in a set has no "|" after it. Hidden rather than removed,
+   so the numbers keep their positions. */
+#quote-numbers li.set-end::after {
+    visibility: hidden;
+}
+
+#quote-numbers li:not(:last-child)::after {
+    content: '|';
+    margin: 0 0.25em;
+    color: inherit;
+}
+
+#quote-numbers li:has(button:disabled) {
+    color: rgba(255, 255, 255, 0.38);
+}
+
+#quote-numbers ol button {
+    padding: 0;
+    border: 0;
+    background: none;
+    font: inherit;
+    color: inherit;
+    cursor: pointer;
+}
+
+#quote-numbers ol button:disabled {
+    cursor: default;
+}
+
+#quote-numbers ol button[aria-current] {
+    color: #ff3b30;
+}
+
+#quote-numbers ol button:not(:disabled):hover {
+    text-decoration: underline;
+}
+
+/* Small arrows: the big arrows' art (images/up-arrow.png turned sideways) at
+   about the height of the numbers. Hidden when there's no set that way; the
+   space stays, so the row doesn't move. */
+.numbers-shift {
+    --arrow-w: 26px;
+    flex-shrink: 0;
+    position: relative;
+    width: var(--arrow-w);
+    height: calc(var(--arrow-w) * 416 / 490);
+    padding: 0;
+    border: 0;
+    background: none;
+    cursor: pointer;
+}
+
+.numbers-shift::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: calc(var(--arrow-w) * 500 / 490);
+    height: calc(var(--arrow-w) * 726 / 490);
+    background: url(images/up-arrow.png) center / contain no-repeat;
+    transform: translate(-50%, -50%) rotate(-90deg);
+}
+
+.numbers-shift.next::before {
+    transform: translate(-50%, -50%) rotate(90deg);
+}
+
+.numbers-shift.hidden {
+    visibility: hidden;
+}
+
+#quote-count {
+    margin: 14px 0 36px; /* bottom: the least space above the close arrow */
+    font-size: 16px;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+/* Close arrow: images/up-arrow.png turned to point down, toward the game
+   (which sits below the page while it's open). margin-top: auto pushes it to
+   the bottom of the page when the content is shorter than the screen.
+   --arrow-w is the arrow's length (here its height), as with .quote-arrow. */
+#achievements-close {
+    --arrow-w: 64px;
+    flex-shrink: 0;
+    position: relative;
+    margin-top: auto;
+    width: calc(var(--arrow-w) * 416 / 490);
+    height: var(--arrow-w);
+    padding: 0;
+    border: 0;
+    background: none;
+    cursor: pointer;
+}
+
+#achievements-close::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: calc(var(--arrow-w) * 500 / 490);
+    height: calc(var(--arrow-w) * 726 / 490);
+    background: url(images/up-arrow.png) center / contain no-repeat;
+    transform: translate(-50%, -50%) rotate(180deg);
+    /* Same slow nudge as the quote arrows, downward. */
+    animation: arrow-nudge-down 1.8s ease-in-out infinite;
+}
+
+@keyframes arrow-nudge-down {
+    0%, 100% { translate: 0 0; }
+    50%      { translate: 0 12%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    #achievements-close::before {
+        animation: none;
+    }
+}
+
+@media screen and (max-width: 700px) {
+    #achievements-badge {
+        --badge-art: 130px;
+    }
+    #achievements-badge h2 {
+        font-size: 19px;
+    }
+    #quote-viewer {
+        column-gap: 14px;
+        margin-top: 30px;
+    }
+    #quote {
+        font-size: 18px;
+    }
+    .quote-arrow {
+        --arrow-w: 44px;
+        margin-top: calc((18px * 1.35 * 2 - var(--arrow-w) * 416 / 490) / 2);
+    }
+    #quote-numbers {
+        margin-top: 44px;
+    }
+    #quote-numbers ol {
+        font-size: 18px;
+        row-gap: 8px;
+    }
+    #achievements-close {
+        --arrow-w: 48px;
+    }
 }
 
 @media screen and (max-width: 1200px) {
@@ -1127,25 +1602,17 @@ section {
     }
 
     #win {
-        /* position: static; */
-        /* height: auto; */
-        padding: 20px 0;
-        flex-direction: column;
+        padding: 20px 15px 0;
     }
 
     #win h2 {
-        text-align: center;
-        padding: 0 15px;
+        font-size: 20px;
     }
 
     #win-statsgraph {
         width: 70%;
         max-width: 300px;
         margin: 20px auto 0 auto;
-    }
-
-    #win .thieves {
-        display: none;
     }
 }
 

@@ -97,6 +97,9 @@
                     </div>
                 </li>
                 <li>
+                    <a id="achievements-btn" class="action-bttn" href="#">achievements</a>
+                </li>
+                <li>
                     <a id="resetstats" class="action-bttn" href="#">reset your stats</a>
                 </li>
             </ul>
@@ -196,6 +199,43 @@
                 </div>
             </div>
         </div>
+    </div>
+    <!-- Achievements: drops in from the top while #container slides down out
+         of view (js/achievements.js). The down arrow at the bottom, Escape
+         or the menu item slides it back.
+         The quote and the number row are filled in by initAchievements(). -->
+    <!-- A div, not a <section>: the game code and styles.css treat every
+         <section> on the page as a tableau pile. role="region" gives it the
+         same meaning to screen readers. -->
+    <div id="achievements" role="region" aria-labelledby="achievements-title" tabindex="-1">
+        <div id="achievements-badge">
+            <div id="achievements-art">
+                <p class="logo-text"><span>forty</span> <span>thieves</span></p>
+            </div>
+            <h2 id="achievements-title">Achievements</h2>
+        </div>
+        <div id="quote-viewer">
+            <button type="button" class="quote-arrow prev" aria-label="previous quote"></button>
+            <figure id="quote">
+                <blockquote id="quote-text"></blockquote>
+                <figcaption id="quote-source"></figcaption>
+            </figure>
+            <button type="button" class="quote-arrow next" aria-label="next quote"></button>
+        </div>
+        <!-- Number row: one slot per quote, shown a set at a time (15, or 8
+             on narrow screens). The small arrows move to the next/previous
+             set without changing the quote. -->
+        <nav id="quote-numbers" aria-label="collected quotes">
+            <button type="button" class="numbers-shift prev" aria-label="earlier quote numbers"></button>
+            <div class="numbers-window">
+                <ol></ol>
+            </div>
+            <button type="button" class="numbers-shift next" aria-label="later quote numbers"></button>
+        </nav>
+        <p id="quote-count"></p>
+        <!-- Closes the page. Points down, toward the game, which sits below
+             the page while it's open. -->
+        <button type="button" id="achievements-close" aria-label="back to the game"></button>
     </div>
 </body>
 </html>

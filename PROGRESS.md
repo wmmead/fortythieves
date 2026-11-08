@@ -923,11 +923,68 @@ The temporary on-screen track list from September 5 is gone: `#audio-tracks-play
 
 `node --check` on `js/music.js`. Headless Chrome over the DevTools Protocol: a real pointer click on "Play Game" logged two `starting track` lines. A forced `rebuildAudioContext()` (the path an iPad app switch takes) then logged `removing track` for both tracks, followed by two new `starting track` lines. The element was no longer in the DOM, and there were no console errors.
 
+## Session: November 2, 2026 — polish fixes on `main`, then quote achievements (branch `feature/achievements`)
+
+### Fixes on `main` (committed by Bill as `5a39a9c` and `d1ae906`)
+
+- **Menu tab shadow cut off on the left.** `#hamburgermenu-container`'s `clip-path: inset(0 -20px -20px 0)` clipped the whole left side to stop the shadow bleeding onto the list. Now a `polygon()` that clips only the top edge and the top 5px of the left edge (where the tab tucks under the list).
+- **Menu usable during a deal.** The interaction blocker is styled in `styles.css` (`#interaction-blocker`) at `z-index: 500` instead of an inline 9999: above everything on the board (cards in flight are 100), below the instructions (raised from 100 to 600), the menu (1000) and the confirm dialog (1600). New `setNewGameEnabled()` in `js/ui.js` greys out the menu's "new game" during `initGame()` and `startNewGame()`. The first deal also had no click handlers (`setupEventListeners()` ran after it): they now attach before the deal, and that deal gets the blocker too.
+- **Stats removed from the menu.** The "game statistics" list item and its CSS are gone; `updateGameStatsInfo()`, `updateEndGameStats()` and `resetGameStatsInfo()` now only redraw the header graphic. The menu's closed position already used `calc(-100% + 60px)`, so it adapts to the menu's height with no change.
+- **How-to-play popup.** The heading and close X are a fixed `<header>`; only the body scrolls, so a Windows scrollbar no longer runs under the X. The popup is a flex column (`openInstructions()` sets `display: flex`) and the body fills the rest, replacing hand-calculated heights. The popup heading has its own line-height and margins: the small-screen bare `h1` rules meant for the logo were overlapping a wrapped title.
+- **Stats graphic on first load.** Drawn before the first deal (as `startNewGame()` already did), not after it.
+- **Stats left out the previous visit's last game.** `getGameStatistics()` skips the game named by `currentGameId`, which on a fresh load still named last visit's final game. `initGame()` now creates the new game record before drawing stats. Verified: 3 saved games showed as 2 before, 3 after (average and win % recomputed correctly).
+- **Cleanup.** 19 unused images removed (old backgrounds, `ali-baba.png`, `logoBG.png`, `menu.svg`, the dark star tiles, two unused card backs, etc.). `cards/cardback3.jpg` is **in use** (`#deck`). The fonts (`fonts/`, `fonts.css`, with OFL licenses; latin + latin-ext `.woff2`, two preloaded) and `normalize/normalize.min.css` (hash-checked against the old CDN link) are now self-hosted: the page makes no outside requests. Favicon: `favicon.ico` (16/32/48, thin white outline so the black spade shows on dark tab bars) and `images/apple-touch-icon.png`, both from Bill's `images/favicon.png`.
+
+### Achievements (branch `feature/achievements`, pushed to GitHub)
+
+Built from Bill's Figma designs for the achievements page and the win screen. See ROADMAP.md, Phase 1.
+
+- **Achievements page** (`js/achievements.js`, markup after `#container` in `index.html`, styles under "ACHIEVEMENTS PAGE" in `styles.css`). The menu's new "achievements" item toggles it. Opening slides `#container` down by `100vh` while the page drops in from the top, on the same 700ms timing. The menu stays on screen over the page: it gets an equal and opposite `translate` (separate from the `transform` it uses to open and close), and `#container` gets `z-index: 900` while `.achievements-moving` is on. While the page is open, only the menu's sound controls and achievements item work; the rest are greyed and ignored in `events.js`. Escape also closes it. Everything in `#container` except the menu is `inert` while open.
+- **Quote viewer.** Big arrows (sideways `up-arrow.png`, gently nudging outward), the left/right arrow keys and the number row move between collected quotes, wrapping at the ends. The quote area is held at the height of the longest collected quote so the row below doesn't jump. Mouse clicks don't give the arrows or numbers focus (no focus ring when switching to the keyboard); Tab still does.
+- **Number row in sets** of 15 (8 at ≤700px): one line clipped by `.numbers-window`, sliding sideways, with numbers outside the set faded and unreachable. The window is as wide as the widest set so the small arrows never move. It follows the current quote. The count ("N of 40 quotes collected") sits below. Widths are re-measured on open and on every font `loadingdone`, because the bold number font can load after `fonts.ready`.
+- **Quote data.** `js/quotes.js`: the 40 quotes kept from Bill's Notion list, each with a permanent `id` (saved progress refers to it; never change one once shipped), `text`, `author`, optional `source` (`*titles*` shown in `<cite>`) and optional `translation` (not shown). The Lao Tzu entry has a TODO: no public-domain translation is named for the "thousand miles" wording.
+- **Collecting.** `js/quoteCollection.js`: collected ids in `localStorage` key `collectedQuotes`, in order won. `awardQuote()` gives a guaranteed new quote with `NEW_QUOTE_CHANCE` (0.5), otherwise any quote; a 4,000-run simulation averaged 54.9 wins for all 40, matching the roadmap. `deleteAllSolitaireUserData()` clears the collection. `SHOWCASE` in `achievements.js` (off) treats every quote as collected, for trying the viewer.
+- **Win screen** (`showWinScreen(winType, award)` in `js/ui.js`). No box or thief graphics: heading across the top (new quote: "New achievement unlocked!"; repeat: "This quote is already in your collection."), then the quote and attribution with the achievements and new game buttons beside it. The "clear" screen uses the same layout with its old wording and no quote. `#win` spans `grid-column: 1 / -1`, because `#tableau-container` is still a 10-column grid. `checkWinCondition()` awards the quote and calls `refreshAchievements(id)`, so the page opens on it.
+- **Empty page:** "Win at least one game, and get all the points, to earn an achievement.", with the big arrows hidden and every number grey.
+- **Em dash** before every attribution (`renderSource()`, shared by both screens). The win-screen attribution is `font-weight: 400`: only 400 and 700 of PT Sans Narrow are in the project.
+
+### Gotchas found
+
+- **Never add a `<section>` outside the tableau.** The game finds its piles with `document.querySelectorAll('section')` in nine places, and `styles.css` styles every `section` as a pile. The first achievements page was a `<section>` and got dealt into. It's a `<div role="region">` now.
+- **A focus moved by script after a key press gets the browser's focus ring** (the blue border on the menu button after Escape). The page now just blurs on close.
+
+### Verified
+
+Headless Chrome over the DevTools Protocol at 1512×860 and 390×844 throughout. For the win flow, real wins were triggered through the game's own `handleScoringAndWin()` with a king on every foundation and the score 13 short of 728. Checked: the empty page; first win saved and shown; seven wins saved in order; a repeat (heading and nothing saved); the clear screen leaving the collection alone; a stats reset through the menu and confirm dialog clearing it; the win screen's achievements button opening the page on the quote just won; new game afterwards. Also: number sets at both widths, row position steady across all 40 quotes, menu tab stationary through the slide, no console errors. Bill also played a real game to a full win.
+
+## Session: November 7, 2026 — roadmap refresh, quote odds, close arrow on the achievements page; merged to `main`
+
+### Roadmap brought up to date
+- Phase 1 has a status line, its "Decided" list records the 40 quotes and the Figma-based design, and its "Open" list is now the real remaining work (see below). Phase 4's fonts row is ✅: OFL, self-hosted since November 2. The phone overflow item was added to the remaining items.
+
+### Quote odds checked, then lowered to 0.4 (Bill's change)
+- Bill's first 10 wins on the iPad were all new quotes. That's expected: with *k* collected, a win is new with probability `1 − (1 − NEW_QUOTE_CHANCE) × k / 40`. At 0.5 that's 1 − k/80, and 10 for 10 has about a 56% chance.
+- Bill set `NEW_QUOTE_CHANCE` to **0.4** to try it: the full 40 now averages ~60 wins (was ~55), and the floor late in the collection is 40% new instead of 50%. Comment in `js/quoteCollection.js` and ROADMAP.md updated to match.
+
+### Close arrow at the bottom of the achievements page
+- `#achievements-close` in `index.html`, the last child of `#achievements`: `images/up-arrow.png` rotated 180° to point **down**, toward the game (which sits below the page while it's open). Chosen over up to match the side arrows, which point to where you're going rather than the way the content slides; an up arrow at the bottom of a page also reads as "back to top". To flip it: `rotate(0deg)` in `#achievements-close::before` and `-12%` in `arrow-nudge-down`.
+- `styles.css`: `margin-top: auto` pushes it to the bottom of the flex-column page when the content is shorter than the screen; `#quote-count` has a 36px bottom margin as the minimum gap. 64px long (48px at ≤700px). Bobs downward on the same 1.8s rhythm as the side arrows; no animation with reduced motion.
+- `js/achievements.js`: click calls `closeAchievements()` (which already blurs focus before going inert); added to the mousedown no-focus list. Screen-reader label "back to the game".
+
+### Verified
+`node --check` on `js/achievements.js` and `js/quoteCollection.js` (Node 26.13, newly installed via Homebrew; earlier this session there was no Node, so headless Chrome was driven from Python with a hand-written DevTools client). Headless Chrome at 1512×860 and 390×844 with three seeded quotes: the arrow sits centred at the bottom, a real pointer click closes the page, nothing is left focused, no console errors. On the phone size the arrow was partly cut off at the bottom edge: after the deal the page is 405px wide, so the browser zooms out and the fixed page becomes 877px tall on an 844px screen. That's the known phone-overflow issue, not the arrow.
+
+### Merged
+`feature/achievements` merged into `main` and pushed. Bill expects minor design and functionality changes to follow, on `main`.
+
 ## Remaining known issues / possible next steps
 
 - **A ~10-20 ms audio remnant on reload and on the resume button** (iPad only, accepted) — the OS output buffer drains after the master gain is cut; see the September 5 master-gain session. Irreducible from JavaScript, and below the threshold Bill considers noticeable.
 
 - **Mobile divider vs. long fan** (minor, cosmetic) — the ≤490px divider is a stable grid border spanning the foundation+tableau rows; a discard fan long enough to overflow that area extends slightly past the bottom of the border. Chosen tradeoff (grid-only, no JS) over the fan-tracking absolute-positioned version. Revisit if it bothers.
 - **Foundation-move affordability can strand a game** (see August 26 session) — narrow edge case, matches the deck-refresh cost design (the undo cost it also mirrored was removed August 27); revisit only if it proves annoying in practice.
+- **Achievements, still open** (November 2): the win-screen reveal animation (still the old `.pop`), the new game button design, and whether to keep the horizontal divider. Repeat-quote heading wording was a guess. Lao Tzu quote translation (TODO in `js/quotes.js`). `images/club-diamond-characters.png` and `images/spade-heart-characters.png` are unused since the win-screen redesign; delete once the design settles. Bill is playtesting on the iPad.
+- **Phone layout slightly wider than the screen** (≤490px, noticed November 2): the score star image and the background texture extend a few pixels past the right edge, so the page can scroll sideways a little. Pre-existing. Since November 7 it also matters for the achievements page: the overflow (405px on a 390px screen) makes the browser zoom out, and the close arrow ends up partly below the bottom edge. Fixing the overflow should fix both.
+- **`NEW_QUOTE_CHANCE` at 0.4** (November 7) is on trial; Bill is judging how it feels.
 - **Shortcut hint styling** (September 6) — deliberately plain; `.action-bttn .shortcut` and `.platform-mac .action-bttn .shortcut` are the hooks if Bill adjusts the fonts.
 - No other tracked items. (Done June 23: mobile discard layout, discard zone styling, undo-of-a-discard-play jump. Done August 29: first-load autoplay block on `full-deal.mp3`, fixed by gating the initial deal behind the new intro overlay's "Play Game" click. Done September 14: the auto-complete graphics — Bill's `empty-thief.png` / `up-arrow.png` are in. Done October 21: the now-playing display, replaced by console logs.)
