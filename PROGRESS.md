@@ -994,6 +994,17 @@ Bill noticed that, on the laptop trackpad and on the iPad, a tap on a card occas
 ### Verified
 `node --check` on both modules. Headless Chrome with real mouse events on dealt boards: double tap as clicks 1,2 moved the card; as clicks 3,4 moved it (old code: ignored); two clicks at count 1, 150ms apart (iPad-like) moved it; 600ms apart gave two single taps (selected, not moved); a tap on the card above during the flight selected it once the move landed (old code: nothing); select then tap a target moved the card. No console errors. Bill confirmed it feels better on the laptop; iPad playtest pending. If double tap ever breaks on the iPad, the `touch-action` line is the first suspect.
 
+## Session: November 7, 2026 (later still) — fix: iPad zooming on a fast double tap
+
+On the iPad, a fast double tap still zoomed the page now and then, even after the tap fix above. Bill uploaded the first CSS change and cleared the cache, and it still happened once.
+
+### Two steps
+1. **CSS:** `touch-action: manipulation` moved from `main` to the `*` rule at the top of `styles.css`, so it covers everything outside the board too: the deal/auto-complete `#interaction-blocker` (added to `<body>`), the margins, the menu and the scrolling panels. Not enough on its own: iOS works out which parts of the page block zoom in the background, and that map can lag behind the page just after a card moves or a layer comes or goes.
+2. **JS:** new `js/noDoubleTapZoom.js`, `preventDoubleTapZoom()` called at module scope in `js/main.js` (covers the intro screen too). When a one-finger tap ends within 400ms of the previous tap, its `touchend` is cancelled (`preventDefault()`, non-passive listener), which stops the zoom but also Safari's click for that tap. So the module dispatches a `click` (`detail: 2`) to the same target, and `events.js` handles it as usual. Pinches (a second finger), scrolls and drags (movement over 10px) are left alone, so pinch zoom and scrolling still work. Taps on `input, select, textarea, label` (volume slider, sound switch) are left alone too.
+
+### Verified
+`node --check`. Headless Chrome with touch emulation and real touch events (Chrome cancels the click on a cancelled `touchend`, as iOS does): a fast double tap moved the card, with exactly one click per tap (one real, one synthetic, no duplicates); taps 600ms apart were two real single taps (selected, not moved); a fast double tap on a card and then on the card above it moved both. No console errors. **Bill played two games on the iPad with no zooming.**
+
 ## Remaining known issues / possible next steps
 
 - **A ~10-20 ms audio remnant on reload and on the resume button** (iPad only, accepted) — the OS output buffer drains after the master gain is cut; see the September 5 master-gain session. Irreducible from JavaScript, and below the threshold Bill considers noticeable.
@@ -1003,6 +1014,6 @@ Bill noticed that, on the laptop trackpad and on the iPad, a tap on a card occas
 - **Achievements, still open** (November 2): the win-screen reveal animation (still the old `.pop`), the new game button design, and whether to keep the horizontal divider. Repeat-quote heading wording was a guess. Lao Tzu quote translation (TODO in `js/quotes.js`). `images/club-diamond-characters.png` and `images/spade-heart-characters.png` are unused since the win-screen redesign; delete once the design settles. Bill is playtesting on the iPad.
 - **Phone layout slightly wider than the screen** (≤490px, noticed November 2): the score star image and the background texture extend a few pixels past the right edge, so the page can scroll sideways a little. Pre-existing. Since November 7 it also matters for the achievements page: the overflow (405px on a 390px screen) makes the browser zoom out, and the close arrow ends up partly below the bottom edge. Fixing the overflow should fix both.
 - **`NEW_QUOTE_CHANCE` at 0.4** (November 7) is on trial; Bill is judging how it feels.
-- **Fast-tap fix needs an iPad playtest** (November 7, later): confirm taps register during fast play and that double tap still works with `touch-action: manipulation`.
+- **Fast-tap fix on the iPad** (November 7): fast tapping is better and double tap still works; no zooming in two games with `js/noDoubleTapZoom.js`. Keep an eye out for any tap that still goes missing.
 - **Shortcut hint styling** (September 6) — deliberately plain; `.action-bttn .shortcut` and `.platform-mac .action-bttn .shortcut` are the hooks if Bill adjusts the fonts.
 - No other tracked items. (Done June 23: mobile discard layout, discard zone styling, undo-of-a-discard-play jump. Done August 29: first-load autoplay block on `full-deal.mp3`, fixed by gating the initial deal behind the new intro overlay's "Play Game" click. Done September 14: the auto-complete graphics — Bill's `empty-thief.png` / `up-arrow.png` are in. Done October 21: the now-playing display, replaced by console logs.)

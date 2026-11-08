@@ -8,6 +8,10 @@ import { initResumeOverlay } from './resumeOverlay.js';
 import { initShortcutHints } from './shortcutHints.js';
 import { createBackground } from './background.js';
 import { initAchievements } from './achievements.js';
+import { preventDoubleTapZoom } from './noDoubleTapZoom.js';
+
+// iPad: no zooming on a fast double tap, from the intro screen onwards.
+preventDoubleTapZoom();
 
 // Animated background. Started at module scope rather than inside
 // DOMContentLoaded so the sky is already there behind the intro overlay

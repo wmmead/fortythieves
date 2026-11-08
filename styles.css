@@ -8,6 +8,15 @@
     user-select: none;
     -webkit-user-select: none;
     -webkit-touch-callout: none;
+    /* No double-tap-to-zoom anywhere. Otherwise iOS Safari zooms when a fast
+       double tap lands outside the cards (the deal/auto-complete blocker, the
+       margins, the menu) and holds taps back to see whether a second one
+       follows. Set on every element rather than on one container: iOS
+       resolves it from the element tapped up through its ancestors, and
+       a layer added to <body> (like #interaction-blocker) or a scrolling
+       panel would fall outside a single container's rule. Pinch zoom and
+       scrolling still work. */
+    touch-action: manipulation;
 }
 body {
     font-family: "PT Sans Narrow", sans-serif;
@@ -930,10 +939,7 @@ main {
     grid-template-columns: repeat(10, 1fr);
     gap: 10px;
     position: relative;
-    /* No double-tap-to-zoom on the board. Otherwise iOS Safari holds a tap
-       back to see whether a second one follows, and fast tapping on cards
-       can have taps swallowed as zoom attempts. Pinch zoom still works. */
-    touch-action: manipulation;
+    /* touch-action: manipulation comes from the * rule at the top. */
 }
 
 section {
