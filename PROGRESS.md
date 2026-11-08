@@ -957,6 +957,26 @@ Built from Bill's Figma designs for the achievements page and the win screen. Se
 
 Headless Chrome over the DevTools Protocol at 1512×860 and 390×844 throughout. For the win flow, real wins were triggered through the game's own `handleScoringAndWin()` with a king on every foundation and the score 13 short of 728. Checked: the empty page; first win saved and shown; seven wins saved in order; a repeat (heading and nothing saved); the clear screen leaving the collection alone; a stats reset through the menu and confirm dialog clearing it; the win screen's achievements button opening the page on the quote just won; new game afterwards. Also: number sets at both widths, row position steady across all 40 quotes, menu tab stationary through the slide, no console errors. Bill also played a real game to a full win.
 
+## Session: November 7, 2026 — roadmap refresh, quote odds, close arrow on the achievements page; merged to `main`
+
+### Roadmap brought up to date
+- Phase 1 has a status line, its "Decided" list records the 40 quotes and the Figma-based design, and its "Open" list is now the real remaining work (see below). Phase 4's fonts row is ✅: OFL, self-hosted since November 2. The phone overflow item was added to the remaining items.
+
+### Quote odds checked, then lowered to 0.4 (Bill's change)
+- Bill's first 10 wins on the iPad were all new quotes. That's expected: with *k* collected, a win is new with probability `1 − (1 − NEW_QUOTE_CHANCE) × k / 40`. At 0.5 that's 1 − k/80, and 10 for 10 has about a 56% chance.
+- Bill set `NEW_QUOTE_CHANCE` to **0.4** to try it: the full 40 now averages ~60 wins (was ~55), and the floor late in the collection is 40% new instead of 50%. Comment in `js/quoteCollection.js` and ROADMAP.md updated to match.
+
+### Close arrow at the bottom of the achievements page
+- `#achievements-close` in `index.html`, the last child of `#achievements`: `images/up-arrow.png` rotated 180° to point **down**, toward the game (which sits below the page while it's open). Chosen over up to match the side arrows, which point to where you're going rather than the way the content slides; an up arrow at the bottom of a page also reads as "back to top". To flip it: `rotate(0deg)` in `#achievements-close::before` and `-12%` in `arrow-nudge-down`.
+- `styles.css`: `margin-top: auto` pushes it to the bottom of the flex-column page when the content is shorter than the screen; `#quote-count` has a 36px bottom margin as the minimum gap. 64px long (48px at ≤700px). Bobs downward on the same 1.8s rhythm as the side arrows; no animation with reduced motion.
+- `js/achievements.js`: click calls `closeAchievements()` (which already blurs focus before going inert); added to the mousedown no-focus list. Screen-reader label "back to the game".
+
+### Verified
+`node --check` on `js/achievements.js` and `js/quoteCollection.js` (Node 26.13, newly installed via Homebrew; earlier this session there was no Node, so headless Chrome was driven from Python with a hand-written DevTools client). Headless Chrome at 1512×860 and 390×844 with three seeded quotes: the arrow sits centred at the bottom, a real pointer click closes the page, nothing is left focused, no console errors. On the phone size the arrow was partly cut off at the bottom edge: after the deal the page is 405px wide, so the browser zooms out and the fixed page becomes 877px tall on an 844px screen. That's the known phone-overflow issue, not the arrow.
+
+### Merged
+`feature/achievements` merged into `main` and pushed. Bill expects minor design and functionality changes to follow, on `main`.
+
 ## Remaining known issues / possible next steps
 
 - **A ~10-20 ms audio remnant on reload and on the resume button** (iPad only, accepted) — the OS output buffer drains after the master gain is cut; see the September 5 master-gain session. Irreducible from JavaScript, and below the threshold Bill considers noticeable.
@@ -964,6 +984,7 @@ Headless Chrome over the DevTools Protocol at 1512×860 and 390×844 throughout.
 - **Mobile divider vs. long fan** (minor, cosmetic) — the ≤490px divider is a stable grid border spanning the foundation+tableau rows; a discard fan long enough to overflow that area extends slightly past the bottom of the border. Chosen tradeoff (grid-only, no JS) over the fan-tracking absolute-positioned version. Revisit if it bothers.
 - **Foundation-move affordability can strand a game** (see August 26 session) — narrow edge case, matches the deck-refresh cost design (the undo cost it also mirrored was removed August 27); revisit only if it proves annoying in practice.
 - **Achievements, still open** (November 2): the win-screen reveal animation (still the old `.pop`), the new game button design, and whether to keep the horizontal divider. Repeat-quote heading wording was a guess. Lao Tzu quote translation (TODO in `js/quotes.js`). `images/club-diamond-characters.png` and `images/spade-heart-characters.png` are unused since the win-screen redesign; delete once the design settles. Bill is playtesting on the iPad.
-- **Phone layout slightly wider than the screen** (≤490px, noticed November 2): the score star image and the background texture extend a few pixels past the right edge, so the page can scroll sideways a little. Pre-existing.
+- **Phone layout slightly wider than the screen** (≤490px, noticed November 2): the score star image and the background texture extend a few pixels past the right edge, so the page can scroll sideways a little. Pre-existing. Since November 7 it also matters for the achievements page: the overflow (405px on a 390px screen) makes the browser zoom out, and the close arrow ends up partly below the bottom edge. Fixing the overflow should fix both.
+- **`NEW_QUOTE_CHANCE` at 0.4** (November 7) is on trial; Bill is judging how it feels.
 - **Shortcut hint styling** (September 6) — deliberately plain; `.action-bttn .shortcut` and `.platform-mac .action-bttn .shortcut` are the hooks if Bill adjusts the fonts.
 - No other tracked items. (Done June 23: mobile discard layout, discard zone styling, undo-of-a-discard-play jump. Done August 29: first-load autoplay block on `full-deal.mp3`, fixed by gating the initial deal behind the new intro overlay's "Play Game" click. Done September 14: the auto-complete graphics — Bill's `empty-thief.png` / `up-arrow.png` are in. Done October 21: the now-playing display, replaced by console logs.)

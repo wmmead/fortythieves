@@ -1466,9 +1466,50 @@ html.achievements-open {
 }
 
 #quote-count {
-    margin: 14px 0 0;
+    margin: 14px 0 36px; /* bottom: the least space above the close arrow */
     font-size: 16px;
     color: rgba(255, 255, 255, 0.7);
+}
+
+/* Close arrow: images/up-arrow.png turned to point down, toward the game
+   (which sits below the page while it's open). margin-top: auto pushes it to
+   the bottom of the page when the content is shorter than the screen.
+   --arrow-w is the arrow's length (here its height), as with .quote-arrow. */
+#achievements-close {
+    --arrow-w: 64px;
+    flex-shrink: 0;
+    position: relative;
+    margin-top: auto;
+    width: calc(var(--arrow-w) * 416 / 490);
+    height: var(--arrow-w);
+    padding: 0;
+    border: 0;
+    background: none;
+    cursor: pointer;
+}
+
+#achievements-close::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: calc(var(--arrow-w) * 500 / 490);
+    height: calc(var(--arrow-w) * 726 / 490);
+    background: url(images/up-arrow.png) center / contain no-repeat;
+    transform: translate(-50%, -50%) rotate(180deg);
+    /* Same slow nudge as the quote arrows, downward. */
+    animation: arrow-nudge-down 1.8s ease-in-out infinite;
+}
+
+@keyframes arrow-nudge-down {
+    0%, 100% { translate: 0 0; }
+    50%      { translate: 0 12%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    #achievements-close::before {
+        animation: none;
+    }
 }
 
 @media screen and (max-width: 700px) {
@@ -1495,6 +1536,9 @@ html.achievements-open {
     #quote-numbers ol {
         font-size: 18px;
         row-gap: 8px;
+    }
+    #achievements-close {
+        --arrow-w: 48px;
     }
 }
 

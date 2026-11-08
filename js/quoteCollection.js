@@ -21,9 +21,10 @@ const COLLECTION_KEY = 'collectedQuotes';
 // The chance that a win is guaranteed a quote the player doesn't have yet.
 // Otherwise any quote can come up, repeats included. Pure random makes the
 // end of the collection drag (the last quote alone would take ~40 wins on
-// average); at 0.5 a full set of 40 takes ~55 wins. Lower it to make the
-// collection take longer. See the table in ROADMAP.md.
-const NEW_QUOTE_CHANCE = 0.5;
+// average); at 0.4 a full set of 40 takes ~60 wins (~55 at 0.5). With k
+// quotes collected, a win is new with probability 1 - (1 - chance) * k / 40.
+// Lower it to make the collection take longer. See ROADMAP.md, Phase 1.
+const NEW_QUOTE_CHANCE = 0.4;
 
 function readIds() {
     try {

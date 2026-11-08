@@ -5,8 +5,8 @@ Opening it slides the whole game (#container) down out of the viewport while
 #achievements drops in from the top, both on the same timing, so they read as
 one sheet pushing the other. The menu stays where it is, on top of the page:
 its sound controls keep working, its "achievements" item closes the page, and
-its other buttons are switched off (styles.css and events.js). Escape also
-closes the page. There's no close control on the page itself yet.
+its other buttons are switched off (styles.css and events.js). The down arrow
+at the bottom of the page (#achievements-close) and Escape also close it.
 
 The quote viewer shows one collected quote at a time. The arrows (and the
 left/right arrow keys) step through them, wrapping at either end; the number
@@ -334,13 +334,14 @@ export function initAchievements() {
     page.querySelector('.quote-arrow.next').addEventListener('click', () => showQuote(current + 1));
     page.querySelector('.numbers-shift.prev').addEventListener('click', () => shiftSet(-1));
     page.querySelector('.numbers-shift.next').addEventListener('click', () => shiftSet(1));
+    document.getElementById('achievements-close').addEventListener('click', closeAchievements);
 
     // A mouse click doesn't give the arrows or numbers focus. Otherwise,
     // pressing an arrow key after clicking one makes the browser switch to
     // keyboard mode and draw its focus ring around the clicked button.
     // Tabbing to them still focuses them, ring included, as it should.
     page.addEventListener('mousedown', e => {
-        if (e.target.closest('.quote-arrow, #quote-numbers button')) e.preventDefault(); // incl. .numbers-shift
+        if (e.target.closest('.quote-arrow, #quote-numbers button, #achievements-close')) e.preventDefault(); // incl. .numbers-shift
     });
 
     // Left/right arrow keys step through quotes while the page is open.

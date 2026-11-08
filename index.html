@@ -201,7 +201,8 @@
         </div>
     </div>
     <!-- Achievements: drops in from the top while #container slides down out
-         of view (js/achievements.js). Escape or the menu item slides it back.
+         of view (js/achievements.js). The down arrow at the bottom, Escape
+         or the menu item slides it back.
          The quote and the number row are filled in by initAchievements(). -->
     <!-- A div, not a <section>: the game code and styles.css treat every
          <section> on the page as a tableau pile. role="region" gives it the
@@ -232,6 +233,9 @@
             <button type="button" class="numbers-shift next" aria-label="later quote numbers"></button>
         </nav>
         <p id="quote-count"></p>
+        <!-- Closes the page. Points down, toward the game, which sits below
+             the page while it's open. -->
+        <button type="button" id="achievements-close" aria-label="back to the game"></button>
     </div>
 </body>
 </html>

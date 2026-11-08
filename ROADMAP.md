@@ -8,6 +8,8 @@ The live web version is at **fortythieves.meaddesign.net**.
 
 ## Phase 1 — Quote achievements
 
+**Status:** built and merged to `main` (November 2–7, 2026; see PROGRESS.md). Working: quote data, collecting, the achievements page (with a close arrow) and the redesigned win screen. Remaining: the design and wording items under **Open**.
+
 A player who wins a game (all 728 points) is shown a quote about wisdom (and a few related topics). An achievements page shows which quotes they have unlocked. Repeats are possible, so the full collection is a long-term goal.
 
 **Plan**
@@ -27,11 +29,16 @@ A player who wins a game (all 728 points) is shown a quote about wisdom (and a f
 
 **Decided**
 - Quotes do **not** survive a stats reset; `deleteAllSolitaireUserData()` clears them too. (Bill may revisit this.)
+- **40 quotes**, chosen from Bill's Notion list, in `js/quotes.js` with permanent ids. Guaranteed-new chance is `NEW_QUOTE_CHANCE = 0.4` (lowered from 0.5 on November 7 after Bill's first 10 wins were all new; a full set now averages ~60 wins). Bill is still judging how it feels.
+- **Visual design** of the achievements page and win screen follows Bill's Figma designs.
 
 **Open**
-- Final quote count (30–50; 40 is the working number). Bill's 38% comes from choosing which boards to play (skipped boards with no moves aren't counted), so other players will likely win less.
-- Choosing the quotes: check every attribution (famous quotes are often misattributed), and prefer old, public-domain sources (Confucius, Seneca, Marcus Aurelius, Lao Tzu, Franklin…). That matters more once the game is sold.
-- Visual design of the quote reveal on the win screen, and of the achievements page.
+- Win-screen reveal animation (still the old `.pop`).
+- New game button design, and whether to keep the horizontal divider on the win screen.
+- Wording of the repeat-quote heading ("This quote is already in your collection." was a guess).
+- Lao Tzu quote: find a public-domain translation for the "thousand miles" wording (TODO in `js/quotes.js`). More generally, double-check attributions before the game is sold.
+- Delete the unused `images/club-diamond-characters.png` and `images/spade-heart-characters.png` once the design settles.
+- Bill's iPad playtest. Note that Bill's 38% win rate comes from choosing which boards to play, so other players will likely win less and take longer to collect.
 
 ---
 
@@ -80,7 +87,7 @@ Selling the game makes it a commercial product, so every outside asset needs a l
 |---|---|---|
 | Music (`audio/`) | Made by Bill | ✅ Owned |
 | Sound effects (`sndfx/`) | Splice (one-month membership) | ⏳ Bill to confirm the Splice license covers commercial use of these sounds in a distributed app |
-| Fonts (Jomhuria, PT Sans Narrow) | Google Fonts | ⏳ Both are believed to use the SIL Open Font License, which allows commercial use and bundling with an app; confirm. Must be moved to local files (they currently load from `fonts.googleapis.com`), which the app needs anyway to work offline. |
+| Fonts (Jomhuria, PT Sans Narrow) | Google Fonts | ✅ SIL Open Font License, which allows commercial use and bundling with an app. Self-hosted since November 2, 2026 (`fonts/`, `fonts.css`), with the OFL license files kept alongside. |
 | Card art (`cards/`, `cards-small/`) | Adobe Stock, with all the typography redrawn by Bill | ⏳ Modifying a stock asset doesn't change its license: the Adobe Stock license still applies. The images were properly licensed and downloaded (not watermarked previews). Remaining check: the Standard license's limit on copies (500,000 under Standard) and any clause on products for resale or templates where the asset is the main value. A card deck inside a game is usually fine, but if anything is unclear, an Extended license or a question to Adobe Support settles it. Adobe Stock licenses are perpetual, so they don't lapse if the subscription ends. |
 | Other images (`images/`) | Generated in Midjourney, then modified by Bill | ✅ Made on a paid Midjourney plan (Bill has never had a free plan), which allows commercial use. Purely AI-generated material can't be copyrighted in the US, while Bill's own modifications can be. So the images can be used, but Bill may not be able to stop others copying the unmodified AI parts. Steam requires disclosing AI-generated content (see Phase 8); Apple currently doesn't. |
 | GSAP | GreenSock | ✅ Free for commercial use (since 2024); keep its license file |
@@ -138,4 +145,5 @@ Either way, the 5-game share milestone falls inside the free version, so the fir
 ## Remaining items from PROGRESS.md
 
 - **Mobile divider vs. long discard fan** (≤490px) — Bill plans to look at this soon.
+- **Phone layout slightly wider than the screen** (≤490px) — the score star and background texture extend a few pixels past the right edge, so the page scrolls sideways a little.
 - **Auto-complete tap point** — check on a real phone that the auto-complete slot always responds to a tap (one test hit `#instructions` instead, probably a test artefact).
